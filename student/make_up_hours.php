@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $reason = trim($_POST['reason']);
 
   if ($date && $start_time && $end_time && $reason) {
-    $stmt = $pdo->prepare("INSERT INTO make_up_requests (user_id, date, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?)");
+    $stmt = $pdo->prepare("INSERT INTO make_up_requests (user_id, request_date, start_time, end_time, reason) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute([$user_id, $date, $start_time, $end_time, $reason]);
     $success = true;
   }

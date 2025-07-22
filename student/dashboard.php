@@ -2,20 +2,17 @@
 session_start();
 require_once '../includes/db.php';
 
-// Session timeout: 10 minutes
-$timeout = 600;
-if (isset($_SESSION['LAST_ACTIVITY']) && time() - $_SESSION['LAST_ACTIVITY'] > $timeout) {
-  session_unset();
-  session_destroy();
-  header("Location: ../login.php?timeout=1");
-  exit();
-}
-$_SESSION['LAST_ACTIVITY'] = time();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+    $notifId = intval($_POST['id']);
+    $userId = $_SESSION['user_id'];
 
-// Only allow logged-in student
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-  header("Location: ../login.php");
-  exit();
+    // Soft delete from view (or hard delete if preferred)
+    $stmt = $pdo->prepare("DELETE FROM make_up_requests WHERE id = ? AND user_id = ?");
+    if ($stmt->execute([$notifId, $userId])) {
+        echo 'success';
+    } else {
+        echo 'fail';
+    }
 }
 
 // Get student data
@@ -140,29 +137,35 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
 </script>
 
 
-    <!-- Notifications Panel -->
-    <section class="mt-8">
-      <h2 class="text-xl font-semibold mb-2">🔔 Notifications</h2>
-      <div class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-2 text-sm">
-        <?php
-        $stmt = $pdo->prepare("SELECT request_date, status, admin_comment FROM make_up_requests WHERE user_id = ? ORDER BY request_date DESC LIMIT 5");
-        $stmt->execute([$_SESSION['user_id']]);
-        $notifications = $stmt->fetchAll();
+<!-- Notifications Panel -->
+<section class="mt-8">
+  <h2 class="text-xl font-semibold mb-2">🔔 Notifications</h2>
+  <div class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-2 text-sm" id="notification-container">
+    <?php
+    $stmt = $pdo->prepare("SELECT id, request_date, status, admin_comment FROM make_up_requests WHERE user_id = ? ORDER BY request_date DESC LIMIT 5");
+    $stmt->execute([$_SESSION['user_id']]);
+    $notifications = $stmt->fetchAll();
 
-        if ($notifications):
-          foreach ($notifications as $n):
-            $icon = $n['status'] === 'approved' ? '✅' : ($n['status'] === 'denied' ? '❌' : '⏳');
-            $message = $n['status'] === 'pending'
-              ? "Your request on {$n['request_date']} is still pending."
-              : "Your request on {$n['request_date']} was <strong>{$n['status']}</strong>. " . ($n['admin_comment'] ? "Comment: <em>{$n['admin_comment']}</em>" : '');
-            echo "<div class='border-b border-gray-300 pb-2'>$icon $message</div>";
-          endforeach;
-        else:
-          echo "<p class='text-gray-500'>No recent notifications.</p>";
-        endif;
-        ?>
-      </div>
-    </section>
+    if ($notifications):
+      foreach ($notifications as $n):
+        $icon = $n['status'] === 'approved' ? '✅' : ($n['status'] === 'denied' ? '❌' : '⏳');
+        $message = $n['status'] === 'pending'
+          ? "Your request on {$n['request_date']} is still pending."
+          : "Your request on {$n['request_date']} was <strong>{$n['status']}</strong>. " . ($n['admin_comment'] ? "Comment: <em>{$n['admin_comment']}</em>" : '');
+    ?>
+        <div id="notif-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
+          <?= $icon ?> <?= $message ?>
+          <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600" onclick="dismissNotification(<?= $n['id'] ?>)">✖</button>
+        </div>
+    <?php
+      endforeach;
+    else:
+      echo "<p class='text-gray-500'>No recent notifications.</p>";
+    endif;
+    ?>
+  </div>
+</section>
+
   </main>
 
   <footer class="text-center p-4 text-sm text-gray-600 dark:text-gray-400">
@@ -170,6 +173,39 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
   </footer>
 
   <script>
+
+  
+  function dismissNotification(id) {
+    fetch('dismiss_notification.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'id=' + encodeURIComponent(id)
+    })
+    .then(response => response.text())
+    .then(result => {
+      if (result === 'success') {
+        const el = document.getElementById('notif-' + id);
+        if (el) {
+  el.remove();
+
+  // Check if there are any notifications left
+  const container = document.getElementById('notification-container');
+  const remaining = container.querySelectorAll('[id^="notif-"]');
+  if (remaining.length === 0) {
+    const noNotif = document.createElement('p');
+    noNotif.className = 'text-gray-500';
+    noNotif.textContent = 'No new notifications.';
+    container.appendChild(noNotif);
+  }
+}
+
+      } else {
+        alert('Failed to remove notification.');
+      }
+    });
+  }
     const toggleBtn = document.getElementById('theme-toggle');
     const htmlEl = document.documentElement;
     const icon = document.getElementById('theme-icon');
