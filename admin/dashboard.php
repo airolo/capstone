@@ -48,7 +48,7 @@ $students = $stmt->fetchAll();
 
 <!-- Main Content -->
 <main class="p-6 max-w-6xl mx-auto space-y-6">
-  <h2 class="text-2xl font-semibold">Admin Dashboard</h2>
+  <h2 class="text-2xl font-semibold"> 👥 Admin Dashboard</h2>
   <p class="text-sm">Name: <strong><?= htmlspecialchars($user['fullname']) ?></strong></p>
   <p class="text-sm mb-4">Office: <strong><?= htmlspecialchars($user['office']) ?></strong></p>
 
@@ -84,6 +84,7 @@ $students = $stmt->fetchAll();
               <th class="text-left p-3">Email</th>
               <th class="text-left p-3">Status</th>
               <th class="text-left p-3">Created</th>
+              <th class="text-left p-3">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +95,13 @@ $students = $stmt->fetchAll();
                 <td class="p-3"><?= htmlspecialchars($student['email']) ?></td>
                 <td class="p-3"><?= htmlspecialchars($student['status']) ?></td>
                 <td class="p-3 text-sm text-gray-500"><?= htmlspecialchars(date('M d, Y', strtotime($student['created_at']))) ?></td>
+                <td class="p-3">
+                  <!-- Delete -->
+                <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this student?');">
+                  <input type="hidden" name="user_id" value="<?= $admin['id'] ?>">
+                  <button type="submit" name="delete_student" class="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Delete</button>
+                </form>
+                </td>
               </tr>
             <?php endforeach ?>
           </tbody>

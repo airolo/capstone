@@ -2,7 +2,6 @@
 session_start();
 require_once '../includes/db.php';
 
-// Session & role check
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
   header("Location: ../login.php");
   exit();
@@ -11,7 +10,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
 $user_id = $_SESSION['user_id'];
 $date_today = date('Y-m-d');
 
-// Fetch attendance for today
 $stmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND log_date = ?");
 $stmt->execute([$user_id, $date_today]);
 $attendance = $stmt->fetch();
@@ -23,7 +21,7 @@ $attendance = $stmt->fetch();
   <title>Time In / Time Out - MySchedMate</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script>tailwind.config = { darkMode: 'class' }</script>
 </head>
 <body class="bg-blue-50 dark:bg-gray-900 text-black dark:text-white min-h-screen">
@@ -35,8 +33,12 @@ $attendance = $stmt->fetch();
     <span class="text-lg font-bold">MySchedMate</span>
   </div>
   <div class="flex space-x-4 items-center">
-    <a href="dashboard.php" class="hover:underline">Dashboard</a>
-    <a href="../logout.php" class="hover:underline">Logout</a>
+    <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </a>
+      <a href="../logout.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </a>
     <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
   </div>
 </nav>
@@ -54,40 +56,48 @@ $attendance = $stmt->fetch();
   </div>
 
   <div id="reader" class="w-full max-w-md bg-white dark:bg-gray-800 p-4 rounded-xl shadow"></div>
-
   <div id="qr-status" class="text-center text-sm mt-4 font-medium"></div>
 </main>
 
 <script>
 const reader = new Html5Qrcode("reader");
+
 reader.start(
   { facingMode: "environment" },
-  {
-    fps: 10,
-    qrbox: 250
-  },
-  qrCodeMessage => {
-    // Send scanned code to server
-    fetch("validate_qr.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "code=" + encodeURIComponent(qrCodeMessage)
-    })
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById('qr-status').textContent = data.message;
-      document.getElementById('qr-status').className = data.success 
-        ? "text-green-600 font-bold text-center mt-4" 
-        : "text-red-600 font-bold text-center mt-4";
-      if (data.success) setTimeout(() => location.reload(), 1500);
-    })
-    .catch(() => {
-      document.getElementById('qr-status').textContent = "Error connecting to server.";
+  { fps: 10, qrbox: 250 },
+  (decodedText) => {
+    // Stop scanner after a successful scan
+    reader.stop().then(() => {
+      // Send QR to PHP for validation
+      fetch("validate_qr.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "code=" + encodeURIComponent(decodedText)
+      })
+      .then(res => res.json())
+      .then(data => {
+        const status = document.getElementById('qr-status');
+        status.textContent = data.message;
+        status.className = data.success 
+          ? "text-green-600 font-bold text-center mt-4" 
+          : "text-red-600 font-bold text-center mt-4";
+
+        if (data.success) setTimeout(() => location.reload(), 1500);
+        else reader.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, () => {}, () => {});
+      })
+      .catch(() => {
+        document.getElementById('qr-status').textContent = "Error connecting to server.";
+        document.getElementById('qr-status').className = "text-red-600 text-center mt-4";
+        reader.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, () => {}, () => {});
+      });
     });
   },
-  error => { /* ignore */ }
+  (errorMsg) => {
+    // Optional: show scanning errors
+  }
 );
 
+// Dark mode toggle
 const toggleBtn = document.getElementById('theme-toggle');
 const icon = document.getElementById('theme-icon');
 const html = document.documentElement;

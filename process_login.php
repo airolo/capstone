@@ -3,13 +3,17 @@ session_start();
 require_once 'includes/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // CSRF check
+    if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        $_SESSION['login_error'] = "Invalid request token.";
+        header("Location: login.php");
+        exit();
+    }
+
     $username = trim($_POST['username']);
     $password = $_POST['password'];
 
-    // Check for user
     $stmt = $pdo->prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?");
-
-
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -20,12 +24,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Redirect based on role
         if ($user['role'] === 'student') {
-    header("Location: student/dashboard.php");
-} elseif ($user['role'] === 'admin') {
-    header("Location: admin/dashboard.php");
-} elseif ($user['role'] === 'superadmin') {
-    header("Location: superadmin/dashboard.php");
-}
+            header("Location: student/dashboard.php");
+        } elseif ($user['role'] === 'admin') {
+            header("Location: admin/dashboard.php");
+        } elseif ($user['role'] === 'superadmin') {
+            header("Location: superadmin/dashboard.php");
+        } else {
+            // fallback for unexpected roles
+            header("Location: login.php");
+        }
 
         exit();
     } else {
@@ -37,3 +44,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: login.php");
     exit();
 }
+

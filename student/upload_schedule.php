@@ -59,8 +59,12 @@ exit();
     <span class="font-bold text-lg">Upload Schedule</span>
   </div>
   <div class="flex space-x-4 items-center">
-    <a href="dashboard.php" class="hover:underline">Dashboard</a>
-    <a href="../logout.php" class="hover:underline">Logout</a>
+    <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </a>
+      <a href="../logout.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </a>
     <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
   </div>
 </nav>

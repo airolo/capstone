@@ -4,9 +4,12 @@ session_start();
 if (isset($_SESSION['user_role'])) {
   if ($_SESSION['user_role'] === 'admin') {
     header("Location: admin/dashboard.php");
-  } else {
+} elseif ($_SESSION['user_role'] === 'superadmin') {
+    header("Location: superadmin/dashboard.php");
+} else {
     header("Location: student/dashboard.php");
-  }
+}
+
   exit();
 }
 if (empty($_SESSION['csrf_token'])) {
@@ -46,6 +49,7 @@ if (empty($_SESSION['csrf_token'])) {
         <input type="password" name="password" required class="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500" />
       </div>
       <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">Login</button>
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     </form>
 
     <p class="text-center text-sm mt-6">

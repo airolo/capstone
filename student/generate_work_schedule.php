@@ -10,7 +10,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
 $user_id = $_SESSION['user_id'];
 
 // Define working hours range (example: 8:00 AM - 6:00 PM)
-$start_day = strtotime("08:00:00");
+$start_day = strtotime("07:30:00");
+
 $end_day = strtotime("18:00:00");
 
 // Fetch class schedules
@@ -32,7 +33,7 @@ foreach ($classes as $class) {
 // Clear previous work schedule
 $pdo->prepare("DELETE FROM work_schedules WHERE user_id = ?")->execute([$user_id]);
 
-$days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+$days = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday'];
 foreach ($days as $day) {
     $blocks = $weekly_classes[$day] ?? [];
     usort($blocks, function($a, $b) { return $a['start'] <=> $b['start']; });

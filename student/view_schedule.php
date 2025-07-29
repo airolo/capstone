@@ -19,9 +19,18 @@ $stmt->execute([$user_id]);
 $work_schedules = $stmt->fetchAll();
 
 // Group all entries by day
-$days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+$days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 function scheduleFor($schedules, $day) {
   return array_filter($schedules, fn($s) => $s['day'] === $day);
+
+// ✅ Insert required 4 hours per day (Mon–Sat)
+$required_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+$stmt = $pdo->prepare("REPLACE INTO daily_required_hours (user_id, day, required_hours) VALUES (?, ?, ?)");
+foreach ($required_days as $day) {
+  $stmt->execute([$user_id, $day, 4.00]);
+}
+
+
 }
 ?>
 
@@ -41,8 +50,12 @@ function scheduleFor($schedules, $day) {
       <span class="font-bold text-lg">MySchedMate</span>
     </div>
     <div class="flex items-center space-x-4">
-      <a href="dashboard.php" class="hover:underline">Dashboard</a>
-      <a href="../logout.php" class="hover:underline">Logout</a>
+      <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </a>
+      <a href="../logout.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </a>
       <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
     </div>
   </nav>

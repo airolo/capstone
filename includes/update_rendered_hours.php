@@ -1,24 +1,35 @@
 <?php
 require_once 'db.php';
 
+// update_rendered_hours.php
 function updateRenderedHours($user_id) {
   global $pdo;
 
-  // Calculate total rendered minutes
-  $stmt = $pdo->prepare("
-    SELECT 
-      SUM(TIMESTAMPDIFF(MINUTE, time_in, time_out)) AS total_minutes
-    FROM attendance_logs
-    WHERE user_id = ? AND time_in IS NOT NULL AND time_out IS NOT NULL
-  ");
+  // Fetch all attendance logs with time_in and time_out
+  $stmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND time_out IS NOT NULL");
   $stmt->execute([$user_id]);
-  $total_minutes = $stmt->fetchColumn();
+  $logs = $stmt->fetchAll();
 
-  // Convert to hours and update users table
-  $rendered_hours = round($total_minutes / 60, 2);
+  $totalMinutes = 0;
+  foreach ($logs as $log) {
+    $timeIn = strtotime($log['time_in']);
+    $timeOut = strtotime($log['time_out']);
+    $diff = ($timeOut - $timeIn) / 60; // minutes
+    $totalMinutes += max(0, $diff);
+  }
 
-  $update = $pdo->prepare("UPDATE users SET rendered_hours = ? WHERE id = ?");
-  $update->execute([$rendered_hours, $user_id]);
+  $rendered_hours = round($totalMinutes / 60, 2); // Convert to hours
 
-  return $rendered_hours;
+  // Count number of unique class dates
+ $daysStmt = $pdo->prepare("SELECT COUNT(DISTINCT day) AS class_days FROM class_schedules WHERE user_id = ?");
+
+  $daysStmt->execute([$user_id]);
+  $class_days = $daysStmt->fetchColumn();
+
+  $required_hours = $class_days * 4; // 4 hours per class day
+
+  // Update users table
+  $update = $pdo->prepare("UPDATE users SET rendered_hours = ?, required_hours = ? WHERE id = ?");
+  $update->execute([$rendered_hours, $required_hours, $user_id]);
 }
+

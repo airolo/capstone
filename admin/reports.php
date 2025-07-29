@@ -60,8 +60,6 @@ $logs = $stmt->fetchAll();
   </div>
   <div class="flex items-center space-x-4">
     <a href="dashboard.php" class="hover:underline">Dashboard</a>
-    <a href="generate_qr.php" class="hover:underline">QR Generator</a>
-    <a href="reports.php" class="hover:underline font-semibold">Reports</a>
     <a href="../logout.php" class="hover:underline">Logout</a>
     <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
   </div>

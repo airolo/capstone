@@ -35,6 +35,9 @@ if (empty($_SESSION['csrf_token'])) {
       <div>
         <label class="block font-semibold text-sm mb-1">Email</label>
         <input type="email" name="email" required class="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500" />
+        <small class="text-sm text-gray-500">
+    Use School Email.
+  </small>
       </div>
      <div>
   <label class="block font-semibold text-sm mb-1">Password</label>
@@ -60,9 +63,11 @@ if (empty($_SESSION['csrf_token'])) {
         </select>
       </div>
       
-      
+       <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+        <input type="hidden" name="role" value="student">
 
       <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">Sign Up</button>
+      
     </form>
 
     <p class="text-center text-sm mt-6">

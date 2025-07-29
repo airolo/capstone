@@ -24,6 +24,20 @@ $required = $data['required_hours'] ?? 0;
 $rendered = $data['rendered_hours'] ?? 0;
 $missed = max(0, $data['missed_hours'] ?? 0);
 $percent = $required > 0 ? min(100, round(($rendered / $required) * 100)) : 0;
+
+// Trigger notification if falling behind
+if ($missed > 0) {
+    $checkStmt = $pdo->prepare("SELECT id FROM notifications WHERE user_id = ? AND message LIKE ? AND is_read = 0");
+    $checkStmt->execute([$user_id, '%You are falling behind%']);
+    
+    if ($checkStmt->rowCount() === 0) {
+        $msg = "⏰ You are falling behind your required hours. Please make up your hours.";
+        $insertStmt = $pdo->prepare("INSERT INTO notifications (user_id, message, created_at) VALUES (?, ?, NOW())");
+        $insertStmt->execute([$user_id, $msg]);
+    }
+}
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">

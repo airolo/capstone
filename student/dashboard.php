@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 require_once '../includes/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
@@ -37,6 +38,8 @@ $yesterdayStmt->execute([$userId, $yesterday]);
 $yesterdayLog = $yesterdayStmt->fetch();
 
 $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['time_out'];
+
+
 ?>
 
 <!DOCTYPE html>
@@ -77,7 +80,9 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
   <main class="p-6 max-w-5xl mx-auto space-y-6">
     <h2 class="text-2xl font-semibold">🎓 Student Dashboard</h2>
     <p class="text-sm">Name: <strong><?= htmlspecialchars($user['fullname']) ?></strong></p>
-    <p class="text-sm mb-4">Office: <strong><?= htmlspecialchars($user['office']) ?></strong></p>
+<p class="text-sm mb-2">Office: <strong><?= htmlspecialchars($user['office']) ?></strong></p>
+<a href="edit_profile.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Edit Profile</a>
+
 
     <!-- Dashboard Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">

@@ -52,6 +52,7 @@ if (isset($_POST['delete_admin']) && isset($_POST['admin_id'])) {
 $stmt = $pdo->prepare("SELECT fullname, username, email, office FROM users WHERE role = 'student'");
 $stmt->execute();
 $students = $stmt->fetchAll();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
