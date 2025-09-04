@@ -17,7 +17,7 @@ $end = $_GET['end_date'] ?? '';
 
 // Build filter query
 $query = "
-  SELECT u.fullname, a.log_date, a.time_in, a.time_out
+  SELECT u.fullname, DATE(a.time_in) AS log_date, a.time_in, a.time_out
   FROM attendance_logs a
   JOIN users u ON a.user_id = u.id
   WHERE u.office = :office
@@ -30,12 +30,12 @@ if ($search) {
   $params[':search'] = "%$search%";
 }
 if ($start && $end) {
-  $query .= " AND a.log_date BETWEEN :start AND :end";
+  $query .= " AND DATE(a.time_in) BETWEEN :start AND :end";
   $params[':start'] = $start;
   $params[':end'] = $end;
 }
 
-$query .= " ORDER BY a.log_date DESC";
+$query .= " ORDER BY a.time_in DESC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $logs = $stmt->fetchAll();
@@ -78,42 +78,42 @@ $logs = $stmt->fetchAll();
 
   <div class="overflow-x-auto">
     <table class="w-full bg-white dark:bg-gray-800 text-sm rounded shadow">
-        
      <thead>
-  <tr class="bg-blue-100 dark:bg-gray-700 text-left">
-    <th class="p-3">Student</th>
-    <th class="p-3">Date</th>
-    <th class="p-3">Time In</th>
-    <th class="p-3">Time Out</th>
-    <th class="p-3">Rendered</th>
-  </tr>
-</thead>
+        <tr class="bg-blue-100 dark:bg-gray-700 text-left">
+          <th class="p-3">Student</th>
+          <th class="p-3">Date</th>
+          <th class="p-3">Time In</th>
+          <th class="p-3">Time Out</th>
+          <th class="p-3">Rendered</th>
+        </tr>
+      </thead>
 
       <tbody>
-  <?php if ($logs): foreach ($logs as $log): ?>
-    <tr class="border-t border-gray-200 dark:border-gray-700">
-      <td class="p-3"><?= htmlspecialchars($log['fullname']) ?></td>
-      <td class="p-3"><?= $log['log_date'] ?></td>
-      <td class="p-3"><?= $log['time_in'] ?? '—' ?></td>
-      <td class="p-3"><?= $log['time_out'] ?? '—' ?></td>
-      <td class="p-3">
-        <?php
-          if ($log['time_in'] && $log['time_out']) {
-            $hours = floor($log['minutes_rendered'] / 60);
-            $minutes = $log['minutes_rendered'] % 60;
-            echo "{$hours}h {$minutes}m";
-          } else {
-            echo "—";
-          }
-        ?>
-      </td>
-    </tr>
-  <?php endforeach; else: ?>
-    <tr><td colspan="5" class="p-4 text-center text-gray-500">No logs found.</td></tr>
-  <?php endif; ?>
-  
-</tbody>
-
+      <?php if ($logs): foreach ($logs as $log): ?>
+        <tr class="border-t border-gray-200 dark:border-gray-700">
+          <td class="p-3"><?= htmlspecialchars($log['fullname']) ?></td>
+          <td class="p-3"><?= $log['log_date'] ?? '—' ?></td>
+          <td class="p-3"><?= $log['time_in'] ?? '—' ?></td>
+          <td class="p-3"><?= $log['time_out'] ?? '—' ?></td>
+          <td class="p-3">
+            <?php
+              if ($log['time_in'] && $log['time_out']) {
+                $start = new DateTime($log['time_in']);
+                $end = new DateTime($log['time_out']);
+                $diff = $start->diff($end);
+                $hours = $diff->h + ($diff->days * 24);
+                $minutes = $diff->i;
+                echo "{$hours}h {$minutes}m";
+              } else {
+                echo "—";
+              }
+            ?>
+          </td>
+        </tr>
+      <?php endforeach; else: ?>
+        <tr><td colspan="5" class="p-4 text-center text-gray-500">No logs found.</td></tr>
+      <?php endif; ?>
+      </tbody>
     </table>
   </div>
 </main>

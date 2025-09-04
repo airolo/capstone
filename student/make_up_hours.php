@@ -99,19 +99,20 @@ $requests = $stmt->fetchAll();
           </tr>
         </thead>
         <tbody>
-          <?php if ($requests): foreach ($requests as $r): ?>
-            <tr class="border-t border-gray-200 dark:border-gray-700">
-              <td class="p-2"><?= htmlspecialchars($r['date']) ?></td>
-              <td class="p-2"><?= date('h:i A', strtotime($r['start_time'])) . " - " . date('h:i A', strtotime($r['end_time'])) ?></td>
-              <td class="p-2"><?= htmlspecialchars($r['reason']) ?></td>
-              <td class="p-2 font-semibold <?= $r['status'] === 'approved' ? 'text-green-600' : ($r['status'] === 'denied' ? 'text-red-600' : 'text-yellow-600') ?>">
-                <?= ucfirst($r['status']) ?>
-              </td>
-            </tr>
-          <?php endforeach; else: ?>
-            <tr><td colspan="4" class="text-center p-4 text-gray-500">No requests yet.</td></tr>
-          <?php endif; ?>
-        </tbody>
+  <?php if ($requests): foreach ($requests as $r): ?>
+    <tr class="border-t border-gray-200 dark:border-gray-700">
+      <td class="p-2"><?= htmlspecialchars($r['request_date']) ?></td>
+      <td class="p-2"><?= date('h:i A', strtotime($r['start_time'])) . " - " . date('h:i A', strtotime($r['end_time'])) ?></td>
+      <td class="p-2"><?= htmlspecialchars($r['reason']) ?></td>
+      <td class="p-2 font-semibold <?= $r['status'] === 'approved' ? 'text-green-600' : ($r['status'] === 'denied' ? 'text-red-600' : 'text-yellow-600') ?>">
+        <?= ucfirst($r['status']) ?>
+      </td>
+    </tr>
+  <?php endforeach; else: ?>
+    <tr><td colspan="4" class="text-center p-4 text-gray-500">No requests yet.</td></tr>
+  <?php endif; ?>
+</tbody>
+
       </table>
     </div>
   </main>

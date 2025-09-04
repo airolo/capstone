@@ -56,12 +56,14 @@ if ($missed > 0) {
       <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
       <span class="text-lg font-bold">MySchedMate</span>
     </div>
-    <div class="flex items-center space-x-4">
-      <a href="dashboard.php" class="hover:underline">Dashboard</a>
-      <a href="../logout.php" class="hover:underline">Logout</a>
-      <button id="theme-toggle">
-        <i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i>
-      </button>
+   <div class="flex items-center space-x-4">
+      <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </a>
+      <a href="../logout.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </a>
+      <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
     </div>
   </nav>
 

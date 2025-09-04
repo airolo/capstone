@@ -23,15 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
   $update->execute([$status, $comment, $request_id]);
 
   // Get user_id and date to notify
-  $getInfo = $pdo->prepare("SELECT user_id, date_requested FROM make_up_requests WHERE id = ?");
-  $getInfo->execute([$request_id]);
-  $info = $getInfo->fetch();
+  $getInfo = $pdo->prepare("SELECT user_id, request_date FROM make_up_requests WHERE id = ?");
+$getInfo->execute([$request_id]);
+$info = $getInfo->fetch();
 
-  if ($info) {
-    $message = "Your make-up request for " . $info['date_requested'] . " has been $status.";
-    $notify = $pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
-    $notify->execute([$info['user_id'], $message]);
-  }
+if ($info) {
+  $message = "Your make-up request for " . $info['request_date'] . " has been $status.";
+  $notify = $pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
+  $notify->execute([$info['user_id'], $message]);
+}
+
 
   header("Location: manage_requests.php?updated=1");
   exit();
@@ -54,12 +55,13 @@ if ($search) {
   $params[':search'] = "%$search%";
 }
 if ($start && $end) {
-  $query .= " AND r.date_requested BETWEEN :start AND :end";
+  $query .= " AND r.request_date BETWEEN :start AND :end";
   $params[':start'] = $start;
   $params[':end'] = $end;
 }
 
-$query .= " ORDER BY r.date_requested DESC";
+$query .= " ORDER BY r.request_date DESC";
+
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $requests = $stmt->fetchAll();
@@ -118,7 +120,7 @@ $requests = $stmt->fetchAll();
         <?php if ($requests): foreach ($requests as $r): ?>
           <tr class="border-t dark:border-gray-700">
             <td class="p-3"><?= htmlspecialchars($r['fullname']) ?></td>
-            <td class="p-3"><?= htmlspecialchars($r['date_requested']) ?></td>
+<td class="p-3"><?= htmlspecialchars($r['request_date']) ?></td>
             <td class="p-3"><?= htmlspecialchars($r['reason']) ?></td>
             <td class="p-3"><?= htmlspecialchars($r['status']) ?></td>
             <td class="p-3">

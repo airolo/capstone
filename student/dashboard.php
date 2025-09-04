@@ -81,7 +81,7 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
     <h2 class="text-2xl font-semibold">🎓 Student Dashboard</h2>
     <p class="text-sm">Name: <strong><?= htmlspecialchars($user['fullname']) ?></strong></p>
 <p class="text-sm mb-2">Office: <strong><?= htmlspecialchars($user['office']) ?></strong></p>
-<a href="edit_profile.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Edit Profile</a>
+<!-- <a href="edit_profile.php" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">Edit Profile</a> -->
 
 
     <!-- Dashboard Cards -->
@@ -94,14 +94,20 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
         <i data-lucide="upload-cloud" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
         <span>Upload Class Schedule</span>
       </a>
-      <a href="generate_work_schedule.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
-        <i data-lucide="cog" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
-        <span>Generate Work Schedule</span>
-      </a>
-      <a href="time_log.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
-        <i data-lucide="clock" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
-        <span>Time In / Out</span>
-      </a>
+       <!-- <a href="generate_work_schedule.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3"> -->
+        <!-- <i data-lucide="cog" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i> -->
+        <!-- <span>Generate Work Schedule</span> -->
+      <!-- </a> -->
+      <a href="time_in.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
+  <i data-lucide="log-in" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
+  <span>Time In</span>
+</a>
+
+<a href="time_out.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
+  <i data-lucide="log-out" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
+  <span>Time Out</span>
+</a>
+
       <a href="progress.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
         <i data-lucide="bar-chart" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
         <span>Progress Report</span>
@@ -147,29 +153,107 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
   <h2 class="text-xl font-semibold mb-2">🔔 Notifications</h2>
   <div class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-2 text-sm" id="notification-container">
     <?php
-    $stmt = $pdo->prepare("SELECT id, request_date, status, admin_comment FROM make_up_requests WHERE user_id = ? ORDER BY request_date DESC LIMIT 5");
-    $stmt->execute([$_SESSION['user_id']]);
-    $notifications = $stmt->fetchAll();
+    // 1. Fetch Make-up Request Notifications
+$stmt = $pdo->prepare("SELECT id, request_date, status, admin_comment 
+                       FROM make_up_requests 
+                       WHERE user_id = ? AND is_dismissed = 0
+                       ORDER BY request_date DESC LIMIT 5");
+$stmt->execute([$_SESSION['user_id']]);
+$makeup_notifications = $stmt->fetchAll();
 
-    if ($notifications):
-      foreach ($notifications as $n):
+// 2. Fetch QR Code Notifications
+$stmt2 = $pdo->prepare("SELECT id, message, qr_code_path, created_at 
+                        FROM notifications 
+                        WHERE user_id = ? AND is_dismissed = 0
+                        ORDER BY created_at DESC LIMIT 5");
+$stmt2->execute([$_SESSION['user_id']]);
+$qr_notifications = $stmt2->fetchAll();
+
+
+    if ($makeup_notifications || $qr_notifications):
+      foreach ($makeup_notifications as $n):
         $icon = $n['status'] === 'approved' ? '✅' : ($n['status'] === 'denied' ? '❌' : '⏳');
         $message = $n['status'] === 'pending'
           ? "Your request on {$n['request_date']} is still pending."
           : "Your request on {$n['request_date']} was <strong>{$n['status']}</strong>. " . ($n['admin_comment'] ? "Comment: <em>{$n['admin_comment']}</em>" : '');
     ?>
-        <div id="notif-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
+        <div id="notif-makeup-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
           <?= $icon ?> <?= $message ?>
-          <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600" onclick="dismissNotification(<?= $n['id'] ?>)">✖</button>
+          <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600" 
+                  onclick="dismissNotification(<?= $n['id'] ?>, 'makeup')">✖</button>
         </div>
     <?php
       endforeach;
+
+      foreach ($qr_notifications as $n):
+        $message = !empty($n['message']) ? htmlspecialchars($n['message']) : "📌 A QR Code has been generated for Time In/Out.";
+    ?>
+        <div id="notif-qr-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
+          <?= $message ?>
+          <?php if (!empty($n['qr_code_path'])): ?>
+            <div class="mt-2 flex items-center space-x-4">
+              <!-- Small Preview -->
+              <img src="../<?= htmlspecialchars($n['qr_code_path']) ?>" 
+                   alt="QR Code" 
+                   class="w-20 h-20 border rounded">
+
+              <!-- View Full QR Button -->
+              <button onclick="showQrModal('../<?= htmlspecialchars($n['qr_code_path']) ?>')" 
+                 class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs">
+                 View Full QR
+              </button>
+            </div>
+          <?php endif; ?>
+          <p class="text-xs text-gray-500 mt-1"><?= $n['created_at'] ?></p>
+          <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600"
+                  onclick="dismissNotification(<?= $n['id'] ?>, 'qr')">✖</button>
+        </div>
+    <?php
+      endforeach;
+
     else:
       echo "<p class='text-gray-500'>No recent notifications.</p>";
     endif;
     ?>
   </div>
 </section>
+
+<!-- Modal -->
+<div id="qrModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-lg relative">
+    <button onclick="closeQrModal()" class="absolute top-2 right-2 text-gray-600 hover:text-red-600">✖</button>
+    <img id="qrModalImage" src="" alt="Full QR" class="w-80 h-80 mx-auto">
+  </div>
+</div>
+
+<script>
+  function showQrModal(src) {
+    document.getElementById("qrModalImage").src = src;
+    document.getElementById("qrModal").classList.remove("hidden");
+  }
+  function closeQrModal() {
+    document.getElementById("qrModal").classList.add("hidden");
+  }
+
+  // 🔥 Dismiss notification
+  function dismissNotification(id, type) {
+    fetch("../student/dismiss_notification.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `id=${id}&type=${type}`
+    })
+    .then(response => response.text())
+    .then(data => {
+      if (data.trim() === "OK") {
+        document.getElementById(`notif-${type}-${id}`).remove();
+      } else {
+        alert("Failed to remove notification: " + data);
+      }
+    })
+    .catch(err => alert("Error: " + err));
+  }
+</script>
+
 
   </main>
 

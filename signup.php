@@ -59,7 +59,14 @@ if (empty($_SESSION['csrf_token'])) {
           <option value="Library">Library</option>
           <option value="Registrar">Registrar</option>
           <option value="Guidance">Guidance</option>
-          <option value="IT Office">IT Office</option>
+          <option value="IT Office">ICTC Office</option>
+          <option value="IT Office">VPAA Office</option>
+          <option value="IT Office">AGTC</option>
+          <option value="IT Office">SAO</option>
+          <option value="IT Office">SOECS Department</option>
+          <option value="IT Office">SEAS Department</option>
+          <option value="IT Office">SHOM Department</option>
+          <option value="IT Office">SON Department</option>
         </select>
       </div>
       
