@@ -36,7 +36,7 @@ if (empty($_SESSION['csrf_token'])) {
         <label class="block font-semibold text-sm mb-1">Email</label>
         <input type="email" name="email" required class="w-full px-4 py-2 border rounded focus:outline-none focus:ring focus:border-blue-500" />
         <small class="text-sm text-gray-500">
-    Use School Email.
+    Use School Email. Ex: 06543210@dwc-legazpi.edu
   </small>
       </div>
      <div>

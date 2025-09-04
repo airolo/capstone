@@ -7,9 +7,56 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'superadmin') {
   exit();
 }
 
-$search = $_GET['search'] ?? '';
+// =========================
+// HANDLE ADMIN ACTIONS
+// =========================
+if (isset($_POST['toggle_active']) && isset($_POST['admin_id'])) {
+  $admin_id = $_POST['admin_id'];
 
-// Fetch Admins
+  $stmt = $pdo->prepare("SELECT email, is_active FROM users WHERE id = ?");
+  $stmt->execute([$admin_id]);
+  $adminData = $stmt->fetch();
+
+  $stmt = $pdo->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ?");
+  $stmt->execute([$admin_id]);
+
+  $subject = "MySchedMate Admin Account " . ($adminData['is_active'] ? "Deactivated" : "Reactivated");
+  $message = "Hello,\n\nYour account has been " . ($adminData['is_active'] ? "deactivated" : "reactivated") . ".\nPlease contact Super Admin if this was a mistake.";
+  @mail($adminData['email'], $subject, $message, "From: myschedmate@domain.com");
+}
+
+if (isset($_POST['delete_admin']) && isset($_POST['admin_id'])) {
+  $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+  $stmt->execute([$_POST['admin_id']]);
+}
+
+// =========================
+// HANDLE STUDENT ACTIONS
+// =========================
+if (isset($_POST['toggle_student_active']) && isset($_POST['student_id'])) {
+  $student_id = $_POST['student_id'];
+
+  $stmt = $pdo->prepare("SELECT email, is_active FROM users WHERE id = ?");
+  $stmt->execute([$student_id]);
+  $studentData = $stmt->fetch();
+
+  $stmt = $pdo->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ?");
+  $stmt->execute([$student_id]);
+
+  $subject = "MySchedMate Student Assistant Account " . ($studentData['is_active'] ? "Deactivated" : "Reactivated");
+  $message = "Hello,\n\nYour account has been " . ($studentData['is_active'] ? "deactivated" : "reactivated") . ".\nPlease contact Super Admin if this was a mistake.";
+  @mail($studentData['email'], $subject, $message, "From: myschedmate@domain.com");
+}
+
+if (isset($_POST['delete_student']) && isset($_POST['student_id'])) {
+  $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+  $stmt->execute([$_POST['student_id']]);
+}
+
+// =========================
+// FETCH ADMINS
+// =========================
+$search = $_GET['search'] ?? '';
 $query = "SELECT id, fullname, username, email, office, is_active FROM users WHERE role = 'admin'";
 $params = [];
 
@@ -23,36 +70,21 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $admins = $stmt->fetchAll();
 
-// Handle Deactivate / Reactivate
-if (isset($_POST['toggle_active']) && isset($_POST['admin_id'])) {
-  $admin_id = $_POST['admin_id'];
+// =========================
+// FETCH STUDENTS
+// =========================
+$search_student = $_GET['search_student'] ?? '';
+$query = "SELECT id, fullname, username, email, office, is_active FROM users WHERE role = 'student'";
+$params = [];
 
-  // Get current email and status
-  $stmt = $pdo->prepare("SELECT email, is_active FROM users WHERE id = ?");
-  $stmt->execute([$admin_id]);
-  $adminData = $stmt->fetch();
-
-  // Toggle active status
-  $stmt = $pdo->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ?");
-  $stmt->execute([$admin_id]);
-
-  // Send email
-  $subject = "MySchedMate Admin Account " . ($adminData['is_active'] ? "Deactivated" : "Reactivated");
-  $message = "Hello,\n\nYour account has been " . ($adminData['is_active'] ? "deactivated" : "reactivated") . ".\nPlease contact Super Admin if this was a mistake.";
-  @mail($adminData['email'], $subject, $message, "From: myschedmate@domain.com");
+if ($search_student) {
+  $query .= " AND (fullname LIKE ? OR username LIKE ? OR office LIKE ?)";
+  $params = ["%$search_student%", "%$search_student%", "%$search_student%"];
 }
 
-// Handle Admin Deletion
-if (isset($_POST['delete_admin']) && isset($_POST['admin_id'])) {
-  $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
-  $stmt->execute([$_POST['admin_id']]);
-}
-
-// Fetch Student Assistants
-$stmt = $pdo->prepare("SELECT fullname, username, email, office FROM users WHERE role = 'student'");
-$stmt->execute();
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
 $students = $stmt->fetchAll();
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -97,7 +129,9 @@ $students = $stmt->fetchAll();
 
     <!-- Search -->
     <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
-      <input type="text" name="search" placeholder="Search by name or office..." value="<?= htmlspecialchars($search) ?>" class="px-3 py-2 border rounded w-64">
+      <input type="text" name="search" placeholder="Search by name or office..." 
+             value="<?= htmlspecialchars($search) ?>" 
+             class="px-3 py-2 border rounded w-64">
       <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded">🔍 Search</button>
     </form>
 
@@ -152,6 +186,15 @@ $students = $stmt->fetchAll();
   <!-- Registered Student Assistants Table -->
   <div class="bg-white dark:bg-gray-800 shadow rounded p-4">
     <h3 class="text-lg font-semibold mb-4">🎓 Registered Student Assistants</h3>
+
+    <!-- Search -->
+    <form method="GET" class="mb-4 flex flex-wrap items-center gap-3">
+      <input type="text" name="search_student" placeholder="Search by name, username, or office..." 
+             value="<?= htmlspecialchars($search_student) ?>" 
+             class="px-3 py-2 border rounded w-64">
+      <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded">🔍 Search</button>
+    </form>
+
     <div class="overflow-x-auto">
       <table class="min-w-full text-sm text-left">
         <thead class="bg-blue-100 dark:bg-gray-700 text-black dark:text-white">
@@ -160,6 +203,8 @@ $students = $stmt->fetchAll();
             <th class="p-2">Username</th>
             <th class="p-2">Email</th>
             <th class="p-2">Office</th>
+            <th class="p-2">Status</th>
+            <th class="p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -169,9 +214,29 @@ $students = $stmt->fetchAll();
               <td class="p-2"><?= htmlspecialchars($student['username']) ?></td>
               <td class="p-2"><?= htmlspecialchars($student['email']) ?></td>
               <td class="p-2"><?= htmlspecialchars($student['office']) ?></td>
+              <td class="p-2">
+                <?= $student['is_active'] ? '<span class="text-green-600">Active</span>' : '<span class="text-red-600">Inactive</span>' ?>
+              </td>
+              <td class="p-2 space-x-1">
+                <!-- Toggle Active -->
+                <form method="POST" class="inline">
+                  <input type="hidden" name="student_id" value="<?= $student['id'] ?>">
+                  <button type="submit" name="toggle_student_active" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">
+                    <?= $student['is_active'] ? 'Deactivate' : 'Activate' ?>
+                  </button>
+                </form>
+                <!-- Edit -->
+                <a href="edit_student.php?id=<?= $student['id'] ?>" 
+                   class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">Edit</a>
+                <!-- Delete -->
+                <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this student assistant?');">
+                  <input type="hidden" name="student_id" value="<?= $student['id'] ?>">
+                  <button type="submit" name="delete_student" class="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Delete</button>
+                </form>
+              </td>
             </tr>
           <?php endforeach; else: ?>
-            <tr><td colspan="4" class="p-3 text-center text-gray-500">No student assistants found.</td></tr>
+            <tr><td colspan="6" class="p-3 text-center text-gray-500">No student assistants found.</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
