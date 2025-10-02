@@ -55,7 +55,7 @@ $students = $stmt->fetchAll();
   <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
    <a href="generate_qr.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition duration-300 flex items-center space-x-3">
   <i data-lucide="qr-code" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
-  <span>Generate QR Code</span>
+  <span>QR Code</span>
 </a>
 
 

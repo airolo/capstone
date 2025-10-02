@@ -63,6 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <option value="Library">Library</option>
         <option value="Guidance">Guidance</option>
         <option value="Accounting">Accounting</option>
+        <option value="ICTC Office">ICTC Office</option>
+          <option value="VPAA Office">VPAA Office</option>
+          <option value="AGTC">AGTC</option>
+          <option value="SAO">SAO</option>
+          <option value="SAO">SOECS Department</option>
+          <option value="SEAS Department">SEAS Department</option>
+          <option value="SHOM Department">SHOM Department</option>
+          <option value="SON Department">SON Department</option>
       </select>
       <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Register Admin</button>
     </form>

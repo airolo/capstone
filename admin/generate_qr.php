@@ -1,7 +1,6 @@
 <?php
 session_start();
 require_once '../includes/db.php';
-require_once '../includes/phpqrcode/qrlib.php';
 
 // Session and access control
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
@@ -14,59 +13,24 @@ $stmtOffice = $pdo->prepare("SELECT office FROM users WHERE id = ?");
 $stmtOffice->execute([$_SESSION['user_id']]);
 $admin_office = $stmtOffice->fetchColumn();
 
-// Date & expiration
 $date = date('Y-m-d');
-$expires_at = date('Y-m-d 23:59:00');
 
-// File paths
-$timeInFile = '../assets/qrcodes/' . $admin_office . '_' . date('Ymd') . '_timein.png';
-$timeOutFile = '../assets/qrcodes/' . $admin_office . '_' . date('Ymd') . '_timeout.png';
-
-// Generate QR helper
-function generateQR($type, $filePath, $date, $expires_at, $admin_office, $pdo) {
-  $code = uniqid("QR_{$type}_", true);
-  QRcode::png($code, $filePath);
-
-  // Save QR to DB
-  $stmt = $pdo->prepare("REPLACE INTO qr_codes (date_generated, code, expires_at, office, type) 
-                         VALUES (?, ?, ?, ?, ?)");
-  $stmt->execute([$date, $code, $expires_at, $admin_office, $type]);
-
-  // Notify students in same office
-  $stmtNotif = $pdo->prepare("INSERT INTO notifications (user_id, message, qr_code_path, created_at)
-                              SELECT id, ?, ?, NOW()
-                              FROM users WHERE role = 'student' AND office = ?");
-  $stmtNotif->execute([
-    "📌 A QR Code has been generated for " . ucfirst($type) . " in $admin_office.",
-    'assets/qrcodes/' . basename($filePath),
-    $admin_office
-  ]);
-}
-
-// Handle Regeneration
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  if (isset($_POST['gen_timein'])) {
-    generateQR("timein", $timeInFile, $date, $expires_at, $admin_office, $pdo);
-  }
-  if (isset($_POST['gen_timeout'])) {
-    generateQR("timeout", $timeOutFile, $date, $expires_at, $admin_office, $pdo);
-  }
-}
-
-// Fetch existing QR codes
-$stmt = $pdo->prepare("SELECT type, code, expires_at FROM qr_codes WHERE date_generated = ? AND office = ?");
+// Fetch today’s QR codes
+$stmt = $pdo->prepare("SELECT type, code FROM qr_codes WHERE date_generated = ? AND office = ?");
 $stmt->execute([$date, $admin_office]);
 $rows = $stmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_UNIQUE);
 
 $timeInQR = $rows['timein']['code'] ?? '';
 $timeOutQR = $rows['timeout']['code'] ?? '';
-?>
 
+$timeInFile = '../assets/qrcodes/' . $admin_office . '_' . date('Ymd') . '_timein.png';
+$timeOutFile = '../assets/qrcodes/' . $admin_office . '_' . date('Ymd') . '_timeout.png';
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>QR Code Generator - Admin Panel</title>
+  <title>QR Code Viewer - Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>tailwind.config = { darkMode: 'class' };</script>
@@ -77,7 +41,7 @@ $timeOutQR = $rows['timeout']['code'] ?? '';
 <nav class="bg-blue-700 dark:bg-gray-800 text-white px-6 py-3 flex justify-between items-center shadow">
   <div class="flex items-center space-x-2">
    <i data-lucide="qr-code" class="w-6 h-6"></i>
-    <span class="font-bold text-lg">Admin Panel - QR Generator</span>
+    <span class="font-bold text-lg">Admin Panel - QR Viewer</span>
   </div>
   <div class="flex items-center space-x-4">
     <a href="dashboard.php" class="hover:underline">Dashboard</a>
@@ -96,14 +60,10 @@ $timeOutQR = $rows['timeout']['code'] ?? '';
     </h2>
     <?php if ($timeInQR && file_exists($timeInFile)): ?>
       <img src="<?= $timeInFile ?>?<?= time() ?>" alt="QR Code Time In" class="w-40 h-40 mx-auto">
+      <p class="text-sm text-gray-600 text-center">Auto-generated at 7:30 AM</p>
     <?php else: ?>
-      <p class="text-red-500">❗ No QR code generated yet.</p>
+      <p class="text-red-500">❗ Time-In QR not yet generated today.</p>
     <?php endif; ?>
-    <form method="POST" class="text-center">
-      <button name="gen_timein" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center space-x-2 mx-auto">
-        <i data-lucide="rotate-cw" class="w-4 h-4"></i><span>Generate / Regenerate Time In QR</span>
-      </button>
-    </form>
   </div>
 
   <!-- TIME OUT QR -->
@@ -113,14 +73,10 @@ $timeOutQR = $rows['timeout']['code'] ?? '';
     </h2>
     <?php if ($timeOutQR && file_exists($timeOutFile)): ?>
       <img src="<?= $timeOutFile ?>?<?= time() ?>" alt="QR Code Time Out" class="w-40 h-40 mx-auto">
+      <p class="text-sm text-gray-600 text-center">Auto-generated at 4:30 PM</p>
     <?php else: ?>
-      <p class="text-red-500">❗ No QR code generated yet.</p>
+      <p class="text-red-500">❗ Time-Out QR not yet generated today.</p>
     <?php endif; ?>
-    <form method="POST" class="text-center">
-      <button name="gen_timeout" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center space-x-2 mx-auto">
-        <i data-lucide="rotate-cw" class="w-4 h-4"></i><span>Generate / Regenerate Time Out QR</span>
-      </button>
-    </form>
   </div>
 
 </main>
@@ -130,13 +86,11 @@ $timeOutQR = $rows['timeout']['code'] ?? '';
   const toggleBtn = document.getElementById('theme-toggle');
   const htmlEl = document.documentElement;
   const icon = document.getElementById('theme-icon');
-
   toggleBtn.addEventListener('click', () => {
     htmlEl.classList.toggle('dark');
     icon.setAttribute('data-lucide', htmlEl.classList.contains('dark') ? 'sun' : 'moon');
     lucide.createIcons();
   });
-
   lucide.createIcons();
 </script>
 </body>

@@ -151,72 +151,101 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
 <!-- Notifications Panel -->
 <section class="mt-8">
   <h2 class="text-xl font-semibold mb-2">🔔 Notifications</h2>
-  <div class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-2 text-sm" id="notification-container">
+  <div class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-4 text-sm" id="notification-container">
     <?php
     // 1. Fetch Make-up Request Notifications
-$stmt = $pdo->prepare("SELECT id, request_date, status, admin_comment 
-                       FROM make_up_requests 
-                       WHERE user_id = ? AND is_dismissed = 0
-                       ORDER BY request_date DESC LIMIT 5");
-$stmt->execute([$_SESSION['user_id']]);
-$makeup_notifications = $stmt->fetchAll();
+    $stmt = $pdo->prepare("SELECT id, request_date, status, admin_comment 
+                           FROM make_up_requests 
+                           WHERE user_id = ? AND is_dismissed = 0
+                           ORDER BY request_date DESC LIMIT 5");
+    $stmt->execute([$_SESSION['user_id']]);
+    $makeup_notifications = $stmt->fetchAll();
 
-// 2. Fetch QR Code Notifications
-$stmt2 = $pdo->prepare("SELECT id, message, qr_code_path, created_at 
-                        FROM notifications 
-                        WHERE user_id = ? AND is_dismissed = 0
-                        ORDER BY created_at DESC LIMIT 5");
-$stmt2->execute([$_SESSION['user_id']]);
-$qr_notifications = $stmt2->fetchAll();
+    // 2. Fetch QR Notifications (Time In & Time Out separately)
+    $stmt2 = $pdo->prepare("SELECT id, message, qr_code_path, created_at 
+                            FROM notifications 
+                            WHERE user_id = ? AND is_dismissed = 0
+                            ORDER BY created_at DESC");
+    $stmt2->execute([$_SESSION['user_id']]);
+    $qr_notifications = $stmt2->fetchAll();
 
+    $timeInNotifs = [];
+    $timeOutNotifs = [];
+    foreach ($qr_notifications as $n) {
+      if (stripos($n['message'], 'TIMEIN') !== false) {
+        $timeInNotifs[] = $n;
+      } elseif (stripos($n['message'], 'TIMEOUT') !== false) {
+        $timeOutNotifs[] = $n;
+      }
+    }
 
-    if ($makeup_notifications || $qr_notifications):
-      foreach ($makeup_notifications as $n):
+    if ($makeup_notifications || $timeInNotifs || $timeOutNotifs):
+    ?>
+      <!-- ✅ Make-up Notifications -->
+      <?php foreach ($makeup_notifications as $n): 
         $icon = $n['status'] === 'approved' ? '✅' : ($n['status'] === 'denied' ? '❌' : '⏳');
         $message = $n['status'] === 'pending'
           ? "Your request on {$n['request_date']} is still pending."
           : "Your request on {$n['request_date']} was <strong>{$n['status']}</strong>. " . ($n['admin_comment'] ? "Comment: <em>{$n['admin_comment']}</em>" : '');
-    ?>
+      ?>
         <div id="notif-makeup-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
           <?= $icon ?> <?= $message ?>
           <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600" 
                   onclick="dismissNotification(<?= $n['id'] ?>, 'makeup')">✖</button>
         </div>
-    <?php
-      endforeach;
+      <?php endforeach; ?>
 
-      foreach ($qr_notifications as $n):
-        $message = !empty($n['message']) ? htmlspecialchars($n['message']) : "📌 A QR Code has been generated for Time In/Out.";
-    ?>
-        <div id="notif-qr-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
-          <?= $message ?>
-          <?php if (!empty($n['qr_code_path'])): ?>
-            <div class="mt-2 flex items-center space-x-4">
-              <!-- Small Preview -->
-              <img src="../<?= htmlspecialchars($n['qr_code_path']) ?>" 
-                   alt="QR Code" 
-                   class="w-20 h-20 border rounded">
+      <!-- ✅ Time In QR Notifications -->
+      <?php if ($timeInNotifs): ?>
+        <h3 class="text-md font-semibold mt-4">⏱ Time In QR</h3>
+        <?php foreach ($timeInNotifs as $n): ?>
+          <div id="notif-qr-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
+            <?= htmlspecialchars($n['message']) ?>
+            <?php if (!empty($n['qr_code_path'])): ?>
+              <div class="mt-2 flex items-center space-x-4">
+                <img src="../<?= htmlspecialchars($n['qr_code_path']) ?>" alt="QR Code" class="w-20 h-20 border rounded">
+                <button onclick="showQrModal('../<?= htmlspecialchars($n['qr_code_path']) ?>')" 
+                  class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs">View Full QR</button>
+              </div>
+            <?php endif; ?>
+            <p class="text-xs text-gray-500 mt-1">
+              Generated at: <?= date("F j, Y g:i A", strtotime($n['created_at'])) ?>
+            </p>
+            <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600"
+                    onclick="dismissNotification(<?= $n['id'] ?>, 'qr')">✖</button>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
 
-              <!-- View Full QR Button -->
-              <button onclick="showQrModal('../<?= htmlspecialchars($n['qr_code_path']) ?>')" 
-                 class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs">
-                 View Full QR
-              </button>
-            </div>
-          <?php endif; ?>
-          <p class="text-xs text-gray-500 mt-1"><?= $n['created_at'] ?></p>
-          <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600"
-                  onclick="dismissNotification(<?= $n['id'] ?>, 'qr')">✖</button>
-        </div>
-    <?php
-      endforeach;
+      <!-- ✅ Time Out QR Notifications -->
+      <?php if ($timeOutNotifs): ?>
+        <h3 class="text-md font-semibold mt-4">⏰ Time Out QR</h3>
+        <?php foreach ($timeOutNotifs as $n): ?>
+          <div id="notif-qr-<?= $n['id'] ?>" class="relative border-b border-gray-300 pb-2 pr-6">
+            <?= htmlspecialchars($n['message']) ?>
+            <?php if (!empty($n['qr_code_path'])): ?>
+              <div class="mt-2 flex items-center space-x-4">
+                <img src="../<?= htmlspecialchars($n['qr_code_path']) ?>" alt="QR Code" class="w-20 h-20 border rounded">
+                <button onclick="showQrModal('../<?= htmlspecialchars($n['qr_code_path']) ?>')" 
+                  class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-xs">View Full QR</button>
+              </div>
+            <?php endif; ?>
+            <p class="text-xs text-gray-500 mt-1">
+              Generated at: <?= date("F j, Y g:i A", strtotime($n['created_at'])) ?>
+            </p>
+            <button class="absolute right-0 top-0 text-gray-500 hover:text-red-600"
+                    onclick="dismissNotification(<?= $n['id'] ?>, 'qr')">✖</button>
+          </div>
+        <?php endforeach; ?>
+      <?php endif; ?>
 
-    else:
-      echo "<p class='text-gray-500'>No recent notifications.</p>";
-    endif;
-    ?>
+    <?php else: ?>
+      <p class='text-gray-500'>No recent notifications.</p>
+    <?php endif; ?>
   </div>
 </section>
+
+
 
 <!-- Modal -->
 <div id="qrModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
