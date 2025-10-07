@@ -9,21 +9,22 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
 
 $user_id = $_SESSION['user_id'];
 
-// Fetch schedules
+// Fetch class schedules
 $stmt = $pdo->prepare("SELECT * FROM class_schedules WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $class_schedules = $stmt->fetchAll();
 
+// Fetch work schedules
 $stmt = $pdo->prepare("SELECT * FROM work_schedules WHERE user_id = ?");
 $stmt->execute([$user_id]);
 $work_schedules = $stmt->fetchAll();
 
 $events = [];
 
-// Class schedules (skip Saturday = day 6)
+// Add class schedules (skip Saturday)
 foreach ($class_schedules as $c) {
   $dayNum = date('w', strtotime($c['day'])); // 0=Sun, 6=Sat
-  if ($dayNum == 6) continue; 
+  if ($dayNum == 6) continue;
   $events[] = [
     'title' => $c['subject'],
     'startTime' => $c['start_time'],
@@ -34,7 +35,7 @@ foreach ($class_schedules as $c) {
   ];
 }
 
-// Work schedules (always allowed)
+// Add work schedules
 foreach ($work_schedules as $w) {
   $dayNum = date('w', strtotime($w['day']));
   $events[] = [
@@ -46,12 +47,24 @@ foreach ($work_schedules as $w) {
     'textColor' => '#000000'
   ];
 }
+
+// ✅ Add “Lunch Break” (12:00–13:00) Monday to Friday
+for ($dayNum = 1; $dayNum <= 5; $dayNum++) {
+  $events[] = [
+    'title' => 'Lunch Break',
+    'startTime' => '12:00:00',
+    'endTime' => '13:00:00',
+    'daysOfWeek' => [$dayNum],
+    'color' => 'transparent', // No highlight
+    'textColor' => '#000000'
+  ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Weekly Calendar View - MySchedMate</title>
+  <title>Weekly Schedule - MySchedMate</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -59,23 +72,21 @@ foreach ($work_schedules as $w) {
   <style>
     #calendar { max-height: 800px; }
 
-    /* Saturday column shading */
+    /* Saturday shading */
     .fc-day-sat {
-      background-color: #f9fafb !important; /* Tailwind gray-50 */
+      background-color: #f9fafb !important;
     }
     .dark .fc-day-sat {
-      background-color: #1f2937 !important; /* Tailwind gray-800 */
+      background-color: #1f2937 !important;
     }
 
-    /* ✅ Day header (Monday, Tuesday...) */
+    /* Header and time styling */
     .fc-col-header-cell-cushion {
       text-align: center !important;
       font-weight: bold;
       font-size: 15px;
       color: black; 
     }
-
-    /* ✅ Time labels (07:00, 07:30...) */
     .fc-timegrid-slot-label-cushion {
       text-align: center !important;
       font-weight: bold;
@@ -83,25 +94,18 @@ foreach ($work_schedules as $w) {
       color: black; 
     }
 
-    /* ✅ Center event text */
-    .fc-event-title,
-    .fc-event-time {
-      text-align: center !important;
-      display: block;
-      width: 100%;
-    }
-
     .fc-event {
       font-size: 13px;
       font-weight: 500;
+      text-align: center;
       justify-content: center;
       align-items: center;
-      text-align: center;
     }
   </style>
 </head>
 <body class="bg-blue-50 dark:bg-gray-900 text-black dark:text-white min-h-screen">
 
+<!-- Navbar -->
 <nav class="bg-blue-700 dark:bg-gray-800 text-white px-6 py-3 flex justify-between items-center shadow">
   <div class="flex items-center space-x-2">
     <i data-lucide="calendar" class="w-6 h-6"></i>
@@ -119,8 +123,10 @@ foreach ($work_schedules as $w) {
   </div>
 </nav>
 
+<!-- Content -->
 <main class="max-w-6xl mx-auto p-6">
-  <h2 class="text-2xl font-bold mb-4">📅 Weekly Schedule (Calendar View)</h2>
+  <h2 class="text-2xl font-bold mb-4">📅 Class & Work Schedule</h2>
+
   <button onclick="window.print()" class="mb-4 bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition">
     🖨️ Print Schedule
   </button>
@@ -137,28 +143,37 @@ foreach ($work_schedules as $w) {
 </main>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-      initialView: 'timeGridWeek',
-      slotMinTime: "07:00:00",
-      slotMaxTime: "17:30:00",
-      allDaySlot: false,
-      hiddenDays: [0], // hide Sunday
-      slotDuration: "00:30:00",
-      slotLabelInterval: "00:30:00",
-      slotLabelFormat: { hour: 'numeric', minute: '2-digit', hour12: false },
-      expandRows: true,
-      contentHeight: "auto",
-      headerToolbar: false,
-
-      // Only show day names
-      dayHeaderFormat: { weekday: 'long' },
-
-      events: <?php echo json_encode($events); ?>
-    });
-
-    calendar.render();
+document.addEventListener('DOMContentLoaded', function () {
+  var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+    initialView: 'timeGridWeek',
+    slotMinTime: "07:30:00",
+    slotMaxTime: "18:00:00",
+    allDaySlot: false,
+    hiddenDays: [0], // Hide Sunday
+    slotDuration: "00:30:00",
+    slotLabelInterval: "00:30:00",
+    slotLabelFormat: { hour: 'numeric', minute: '2-digit', hour12: false },
+    expandRows: true,
+    contentHeight: "auto",
+    headerToolbar: false,
+    dayHeaderFormat: { weekday: 'long' },
+    events: <?php echo json_encode($events); ?>
   });
+  calendar.render();
+});
 </script>
+
+<script>
+  const toggleBtn = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const html = document.documentElement;
+  toggleBtn.addEventListener('click', () => {
+    html.classList.toggle('dark');
+    icon.setAttribute('data-lucide', html.classList.contains('dark') ? 'sun' : 'moon');
+    lucide.createIcons();
+  });
+  lucide.createIcons();
+</script>
+
 </body>
 </html>

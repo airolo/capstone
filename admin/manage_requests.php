@@ -84,9 +84,15 @@ $requests = $stmt->fetchAll();
     <i data-lucide="user-check" class="w-5 h-5"></i>
     <span class="text-lg font-semibold">Make-Up Request Management</span>
   </div>
-  <div class="space-x-4">
-    <a href="dashboard.php" class="hover:underline">Dashboard</a>
-    <a href="../logout.php" class="hover:underline">Logout</a>
+  <div class="space-x-4 flex items-center">
+    <span class="text-sm hidden sm:inline">Welcome, <?= htmlspecialchars($_SESSION['username']) ?>!</span>
+  <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </a>
+    <a href="../logout.php" class="flex items-center gap-1 hover:underline">
+        <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+      </a>
+      <button id="theme-toggle"><i id="theme-icon" data-lucide="moon" class="w-5 h-5"></i></button>
   </div>
 </nav>
 
@@ -143,8 +149,18 @@ $requests = $stmt->fetchAll();
     </table>
   </div>
 </main>
-
+<!-- Theme Toggle Script -->
 <script>
+  const toggleBtn = document.getElementById('theme-toggle');
+  const htmlEl = document.documentElement;
+  const icon = document.getElementById('theme-icon');
+
+  toggleBtn.addEventListener('click', () => {
+    htmlEl.classList.toggle('dark');
+    icon.setAttribute('data-lucide', htmlEl.classList.contains('dark') ? 'sun' : 'moon');
+    lucide.createIcons();
+  });
+
   lucide.createIcons();
 </script>
 </body>

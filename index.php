@@ -40,7 +40,7 @@
   <header id="hero" class="bg-blue-600 text-white pt-32 pb-20 text-center">
     <div class="max-w-7xl mx-auto px-6">
       <h1 class="text-4xl md:text-6xl font-bold mb-4">MySchedMate</h1>
-      <p class="text-lg md:text-xl mb-6">Scheduling Tool for Student Assistants</p>
+      <p class="text-lg md:text-xl mb-6">A Scheduler Tool and Attendance Monitoring Web App for Student Assistants</p>
       <a href="signup.php" class="bg-white text-blue-600 font-semibold px-6 py-3 rounded-full hover:bg-gray-100 transition">Get Started</a>
     </div>
   </header>

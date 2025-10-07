@@ -1,55 +1,64 @@
 <?php
-// No session needed for cron
-// Use absolute paths so it works outside browser
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/phpqrcode/qrlib.php';
 
-// Date & expiration
-$date = date('Y-m-d');
-$timeInStart  = "07:30:00";
-$timeOutStart = "17:30:00";
-$expires_at   = $date . " 23:59:59";
+date_default_timezone_set('Asia/Manila');
 
-// Ensure output folder exists
-$qrFolder = __DIR__ . '/assets/qrcodes/';
-if (!file_exists($qrFolder)) {
-    mkdir($qrFolder, 0777, true);
+// ✅ Define scheduled QR times and expiration
+$qrSchedules = [
+    'timein_am'  => ['generate_time' => '07:30:00', 'expire_after' => '+30 minutes'],
+    'timeout_am' => ['generate_time' => '11:00:00', 'expire_after' => '+30 minutes'],
+    'timein_pm'  => ['generate_time' => '13:00:00', 'expire_after' => '+30 minutes'],
+    'timeout_pm' => ['generate_time' => '17:30:00', 'expire_after' => '+30 minutes'],
+];
+
+function generateQR($type, $office, $pdo, $schedule) {
+    $folderPath = __DIR__ . '/assets/qrcodes/';
+    if (!is_dir($folderPath)) mkdir($folderPath, 0777, true);
+
+    $fileName = "{$office}_" . date('Ymd_His') . "_{$type}.png";
+    $filePath = $folderPath . $fileName;
+
+    $codeValue = uniqid("QR_{$type}_", true);
+    QRcode::png($codeValue, $filePath);
+
+    $createdAt = date('Y-m-d H:i:s', strtotime(date('Y-m-d') . ' ' . $schedule['generate_time']));
+    $expiresAt = date('Y-m-d H:i:s', strtotime($schedule['expire_after'], strtotime($createdAt)));
+
+    // ✅ Store QR code entry
+    $stmt = $pdo->prepare("
+        INSERT INTO qr_codes (office, date_generated, type, qr_path, code, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ");
+    $stmt->execute([$office, date('Y-m-d'), $type, 'assets/qrcodes/' . $fileName, $codeValue, $createdAt, $expiresAt]);
+
+    // ✅ Notification message
+    $notifMsg = match($type) {
+        'timein_am'  => '📌 Morning Time-In QR generated (7:30 AM)',
+        'timeout_am' => '📌 Morning Time-Out QR generated (11:00 AM)',
+        'timein_pm'  => '📌 Afternoon Time-In QR generated (1:00 PM)',
+        'timeout_pm' => '📌 Afternoon Time-Out QR generated (5:30 PM)',
+        default      => '📌 A new QR has been generated.'
+    };
+
+    // ✅ Fix: use `qr_code_path` (to match dashboard column name)
+    $stmtNotif = $pdo->prepare("
+        INSERT INTO notifications (user_id, message, qr_code_path, created_at)
+        SELECT id, ?, ?, NOW()
+        FROM users
+        WHERE role = 'student' AND office = ?
+    ");
+    $stmtNotif->execute([$notifMsg, 'assets/qrcodes/' . $fileName, $office]);
 }
 
-// Get all offices from users table
-$stmtOffices = $pdo->query("SELECT DISTINCT office FROM users WHERE role = 'student'");
-$offices = $stmtOffices->fetchAll(PDO::FETCH_COLUMN);
 
-// Helper function to generate QR
-function generateQR($office, $type, $time, $date, $expires_at, $pdo) {
-    global $qrFolder;
+$offices = $pdo->query("SELECT DISTINCT office FROM users WHERE role = 'admin'")->fetchAll(PDO::FETCH_COLUMN);
 
-    $code = uniqid("QR_{$type}_", true);
-    $payload = "{$office}|{$type}|{$date}|{$code}";
-
-    $fileName = "{$office}_" . date('Ymd') . "_{$type}.png";
-    $filePath = $qrFolder . $fileName;
-
-    QRcode::png($payload, $filePath, QR_ECLEVEL_L, 4);
-
-    // Save into DB (unique per office+type+date)
-    $stmt = $pdo->prepare("REPLACE INTO qr_codes (date_generated, code, expires_at, office, type) 
-                           VALUES (?, ?, ?, ?, ?)");
-    $stmt->execute([$date, $code, $expires_at, $office, $type]);
-
-    // Notify all students in that office
-    $message = "📌 QR for " . strtoupper($type) . " has been auto-generated at {$time} for {$office}.";
-    $relPath = 'assets/qrcodes/' . $fileName;
-
-    $stmtNotif = $pdo->prepare("INSERT INTO notifications (user_id, message, qr_code_path, created_at)
-                                SELECT id, ?, ?, NOW() FROM users WHERE role = 'student' AND office = ?");
-    $stmtNotif->execute([$message, $relPath, $office]);
-}
-
-// Generate for each office
 foreach ($offices as $office) {
-    generateQR($office, "timein",  $timeInStart,  $date, $expires_at, $pdo);
-    generateQR($office, "timeout", $timeOutStart, $date, $expires_at, $pdo);
+    foreach ($qrSchedules as $type => $schedule) {
+        generateQR($type, $office, $pdo, $schedule);
+    }
 }
 
-echo "✅ QR codes auto-generated for all offices at 7:30 AM and 5:30 PM.\n";
+echo "✅ All QR codes generated with proper expiry times on " . date('F j, Y h:i A');
+?>

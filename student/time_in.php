@@ -11,15 +11,32 @@ $userId = $_SESSION['user_id'];
 $today = date('Y-m-d');
 $message = "";
 
+// ✅ Fetch student office for QR matching
+$stmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$user = $stmt->fetch();
+$student_office = $user['office'] ?? '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qrCode = trim($_POST['qr_code']);
 
-    // Validate QR
-    $stmt = $pdo->prepare("SELECT code FROM qr_codes WHERE DATE(created_at) = ? ORDER BY created_at DESC LIMIT 1");
-    $stmt->execute([$today]);
-    $validCode = $stmt->fetchColumn();
+    // ✅ Validate QR against today's valid 'time_in' code for same office
+    $stmt = $pdo->prepare("
+    SELECT * FROM qr_codes
+    WHERE BINARY TRIM(code) = TRIM(?)
+      AND LOWER(office) = LOWER(?)
+      AND type IN ('timein_am', 'timein_pm')
+      AND DATE(date_generated) = CURDATE()
+      AND expires_at >= NOW()
+    LIMIT 1
+");
 
-    if ($validCode && $qrCode === $validCode) {
+$stmt->execute([$qrCode, $student_office]);
+$qr = $stmt->fetch();
+
+
+    if ($qr) {
+        // ✅ Prevent duplicate time-in
         $stmt = $pdo->prepare("SELECT id FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ?");
         $stmt->execute([$userId, $today]);
         $existing = $stmt->fetch();

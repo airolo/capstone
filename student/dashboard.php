@@ -118,27 +118,50 @@ $missedTimeout = $yesterdayLog && $yesterdayLog['time_in'] && !$yesterdayLog['ti
       </a>
     </div>
 
-    <!-- ✅ Real-Time Time Log Status -->
+<!-- ✅ Today's Attendance Sessions -->
 <section>
-  <h3 class="text-lg font-semibold mb-2">🕒 Today's Time Log (<?= date('F j, Y') ?>)</h3>
-  <div class="mt-6 bg-white dark:bg-gray-800 p-5 rounded-xl shadow space-y-2">
-    <p><strong>Time-In:</strong> 
-      <?= $log && $log['time_in'] 
-        ? '<span class="text-green-600 font-medium">✅ ' . date("g:i A", strtotime($log['time_in'])) . '</span>' 
-        : '<span class="text-red-600 font-medium">❌ Not yet timed in</span>' ?>
-    </p>
+  <h3 class="text-lg font-semibold mb-2">🕒 Today's Session (<?= date('F j, Y') ?>)</h3>
+  <div class="mt-6 bg-white dark:bg-gray-800 p-5 rounded-xl shadow space-y-3">
+    <?php
+    // Fetch all attendance logs for today
+    $todayLogsStmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ? ORDER BY time_in ASC");
+    $todayLogsStmt->execute([$userId, date('Y-m-d')]);
+    $todayLogs = $todayLogsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    <p><strong>Time-Out:</strong> 
-      <?= $log && $log['time_out'] 
-        ? '<span class="text-green-600 font-medium">✅ ' . date("g:i A", strtotime($log['time_out'])) . '</span>' 
-        : '<span class="text-red-600 font-medium">❌ Not yet timed out</span>' ?>
-    </p>
-
-    <?php if ($missedTimeout): ?>
-      <p class="text-red-500 mt-2">⚠️ You forgot to time out yesterday (<?= date("F j", strtotime($yesterday)) ?>).</p>
+    if (empty($todayLogs)): ?>
+      <p class="text-gray-500 text-sm">No sessions recorded yet today.</p>
+    <?php else: ?>
+      <ul class="text-sm space-y-2">
+        <?php foreach ($todayLogs as $index => $log): 
+          $session_label = '';
+          if ($log['time_in']) {
+            $hour = date('H', strtotime($log['time_in']));
+            $session_label = ($hour < 12) ? 'Session 1 (AM)' : 'Session 2 (PM)';
+          } else {
+            // If time_in missing, fallback by index
+            $session_label = ($index === 0) ? 'Session 1 (AM)' : 'Session 2 (PM)';
+          }
+        ?>
+          <li class="border-b border-gray-200 dark:border-gray-700 pb-2">
+            <strong><?= $session_label ?>:</strong><br>
+            <span class="block ml-3">🟢 Time In: <?= $log['time_in'] ? date('h:i A', strtotime($log['time_in'])) : '—' ?></span>
+            <span class="block ml-3">🔴 Time Out: <?= $log['time_out'] ? date('h:i A', strtotime($log['time_out'])) : '—' ?></span>
+            <?php if ($log['time_in'] && $log['time_out']): ?>
+              <?php
+                $duration = strtotime($log['time_out']) - strtotime($log['time_in']);
+                $hours = floor($duration / 3600);
+                $minutes = floor(($duration % 3600) / 60);
+              ?>
+              <span class="block ml-3 text-gray-500 text-xs">🕓 Duration: <?= $hours ?>h <?= $minutes ?>m</span>
+            <?php endif; ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
     <?php endif; ?>
   </div>
 </section>
+
+
 
 <!-- Auto-refresh every 30 seconds -->
 <script>
