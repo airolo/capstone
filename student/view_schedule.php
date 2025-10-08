@@ -48,7 +48,7 @@ foreach ($work_schedules as $w) {
   ];
 }
 
-// ✅ Add “Lunch Break” (12:00–13:00) Monday to Friday
+// Add “Lunch Break” (12:00–13:00) Monday to Friday
 for ($dayNum = 1; $dayNum <= 5; $dayNum++) {
   $events[] = [
     'title' => 'Lunch Break',

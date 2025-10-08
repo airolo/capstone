@@ -2,19 +2,19 @@
 session_start();
 require_once '../includes/db.php';
 
-// ✅ Access control
+//  Access control
 if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     header("Location: ../login.php");
     exit();
 }
 
-// ✅ Fetch admin info
+// Fetch admin info
 $stmt = $pdo->prepare("SELECT fullname, office FROM users WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch();
 $admin_office = $user['office'];
 
-// ✅ Handle approval or rejection
+// Handle approval or rejection
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $student_id = $_POST['student_id'];
     $action = $_POST['action'];
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt = $pdo->prepare("UPDATE users SET status = ? WHERE id = ?");
     $stmt->execute([$status, $student_id]);
 
-    // ✅ Fetch user email to send notification
+    // Fetch user email to send notification
     $stmt = $pdo->prepare("SELECT email, fullname FROM users WHERE id = ?");
     $stmt->execute([$student_id]);
     $student = $stmt->fetch();
@@ -53,11 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit();
 }
 
-// ✅ Fetch pending student assistants for approval
-$stmt_pending = $pdo->prepare("SELECT * FROM users WHERE role = 'student' AND status = 'inactive'");
-$stmt_pending->execute();
-$pending_accounts = $stmt_pending->fetchAll(PDO::FETCH_ASSOC);
-
+// Fetch pending student assistants for approval (status = 'pending' and same office)
+$stmt_pending = $pdo->prepare("
+    SELECT * FROM users 
+    WHERE role = 'student' AND status = 'pending' AND office = ?
+    ORDER BY created_at ASC
+");
+$stmt_pending->execute([$admin_office]);
+$pending_students = $stmt_pending->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -71,7 +74,7 @@ $pending_accounts = $stmt_pending->fetchAll(PDO::FETCH_ASSOC);
 
 <body class="bg-blue-50 dark:bg-gray-900 text-black dark:text-white min-h-screen">
 
-<!-- ✅ Navbar -->
+<!-- Navbar -->
 <nav class="bg-blue-700 dark:bg-gray-800 text-white px-6 py-3 flex items-center justify-between shadow">
   <div class="flex items-center space-x-2">
     <i data-lucide="user-cog" class="w-6 h-6"></i>
@@ -89,7 +92,7 @@ $pending_accounts = $stmt_pending->fetchAll(PDO::FETCH_ASSOC);
   </div>
 </nav>
 
-<!-- ✅ Main Content -->
+<!-- Main Content -->
 <main class="p-6 max-w-6xl mx-auto space-y-8">
   <h2 class="text-2xl font-semibold flex items-center gap-2">
     <i data-lucide="user-check" class="w-6 h-6 text-blue-600"></i> Account Approvals
@@ -130,15 +133,21 @@ $pending_accounts = $stmt_pending->fetchAll(PDO::FETCH_ASSOC);
                 <td class="p-3"><?= htmlspecialchars($student['username']) ?></td>
                 <td class="p-3"><?= htmlspecialchars($student['email']) ?></td>
                 <td class="p-3 text-sm text-gray-500"><?= htmlspecialchars(date('M d, Y', strtotime($student['created_at']))) ?></td>
-                <td class="p-3 text-center space-x-2">
-                  <form method="POST" class="inline">
-                    <input type="hidden" name="student_id" value="<?= htmlspecialchars($student['id']) ?>">
-                    <button type="submit" name="action" value="approve" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-sm rounded">Approve</button>
-                  </form>
-                  <form method="POST" class="inline">
-                    <input type="hidden" name="student_id" value="<?= htmlspecialchars($student['id']) ?>">
-                    <button type="submit" name="action" value="reject" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 text-sm rounded">Reject</button>
-                  </form>
+                <td class="p-3 text-center">
+                  <div class="flex justify-center gap-2">
+                    <form method="POST">
+                      <input type="hidden" name="student_id" value="<?= htmlspecialchars($student['id']) ?>">
+                      <button type="submit" name="action" value="approve" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 text-sm rounded-lg shadow-sm transition">
+                        Approve
+                      </button>
+                    </form>
+                    <form method="POST">
+                      <input type="hidden" name="student_id" value="<?= htmlspecialchars($student['id']) ?>">
+                      <button type="submit" name="action" value="reject" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 text-sm rounded-lg shadow-sm transition">
+                        Reject
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             <?php endforeach; ?>

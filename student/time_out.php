@@ -11,7 +11,7 @@ $userId = $_SESSION['user_id'];
 $today = date('Y-m-d');
 $message = "";
 
-// ✅ Fetch student’s office for QR validation
+// Fetch student’s office for QR validation
 $stmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
@@ -20,7 +20,7 @@ $student_office = $user['office'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qrCode = trim($_POST['qr_code']);
 
-    // ✅ Validate QR for today’s valid time-out type for same office
+    // Validate QR for today’s valid time-out type for same office
     $stmt = $pdo->prepare("
         SELECT * FROM qr_codes
         WHERE BINARY TRIM(code) = TRIM(?)
@@ -34,24 +34,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qr = $stmt->fetch();
 
     if ($qr) {
-        // ✅ Check if user has already timed in today
-        $stmt = $pdo->prepare("SELECT id, time_out FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ?");
-        $stmt->execute([$userId, $today]);
+        // Determine session from QR type
+        $session = ($qr['type'] === 'timeout_am') ? 'AM' : 'PM';
+
+        // Find the log for this session
+        $stmt = $pdo->prepare("
+            SELECT id, time_out 
+            FROM attendance_logs 
+            WHERE user_id = ? AND DATE(time_in) = ? AND session = ?
+        ");
+        $stmt->execute([$userId, $today, $session]);
         $log = $stmt->fetch();
 
         if ($log && !$log['time_out']) {
             $stmt = $pdo->prepare("UPDATE attendance_logs SET time_out = NOW() WHERE id = ?");
             $stmt->execute([$log['id']]);
-            $message = "✅ Time-Out recorded successfully!";
+            $message = "✅ Time-Out recorded successfully for Session $session!";
         } elseif ($log && $log['time_out']) {
-            $message = "⚠️ You already timed out today.";
+            $message = "⚠️ You already timed out for Session $session today.";
         } else {
-            $message = "⚠️ You must time in first before timing out.";
+            $message = "⚠️ You must time in first for Session $session before timing out.";
         }
     } else {
         $message = "❌ Invalid or expired QR code.";
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -73,6 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <span class="text-lg font-bold">MySchedMate</span>
     </div>
     <div class="flex items-center space-x-4">
+      <span class="text-sm">Welcome, <?= htmlspecialchars($_SESSION['username']) ?>!</span>
       <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </a>

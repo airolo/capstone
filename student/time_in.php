@@ -11,7 +11,7 @@ $userId = $_SESSION['user_id'];
 $today = date('Y-m-d');
 $message = "";
 
-// ✅ Fetch student office for QR matching
+// Fetch student office for QR matching
 $stmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
 $stmt->execute([$userId]);
 $user = $stmt->fetch();
@@ -20,38 +20,47 @@ $student_office = $user['office'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qrCode = trim($_POST['qr_code']);
 
-    // ✅ Validate QR against today's valid 'time_in' code for same office
+    // Validate QR against today's valid 'time_in' code for same office
     $stmt = $pdo->prepare("
-    SELECT * FROM qr_codes
-    WHERE BINARY TRIM(code) = TRIM(?)
-      AND LOWER(office) = LOWER(?)
-      AND type IN ('timein_am', 'timein_pm')
-      AND DATE(date_generated) = CURDATE()
-      AND expires_at >= NOW()
-    LIMIT 1
-");
-
-$stmt->execute([$qrCode, $student_office]);
-$qr = $stmt->fetch();
-
+        SELECT * FROM qr_codes
+        WHERE BINARY TRIM(code) = TRIM(?)
+          AND LOWER(office) = LOWER(?)
+          AND type IN ('timein_am', 'timein_pm')
+          AND DATE(date_generated) = CURDATE()
+          AND expires_at >= NOW()
+        LIMIT 1
+    ");
+    $stmt->execute([$qrCode, $student_office]);
+    $qr = $stmt->fetch();
 
     if ($qr) {
-        // ✅ Prevent duplicate time-in
-        $stmt = $pdo->prepare("SELECT id FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ?");
-        $stmt->execute([$userId, $today]);
+        // Determine session from QR type
+        $session = ($qr['type'] === 'timein_am') ? 'AM' : 'PM';
+
+        // Prevent duplicate time-in for this session
+        $stmt = $pdo->prepare("
+            SELECT id 
+            FROM attendance_logs 
+            WHERE user_id = ? AND DATE(time_in) = ? AND session = ?
+        ");
+        $stmt->execute([$userId, $today, $session]);
         $existing = $stmt->fetch();
 
         if (!$existing) {
-            $stmt = $pdo->prepare("INSERT INTO attendance_logs (user_id, time_in) VALUES (?, NOW())");
-            $stmt->execute([$userId]);
-            $message = "✅ Time-In recorded successfully!";
+            $stmt = $pdo->prepare("
+                INSERT INTO attendance_logs (user_id, session, time_in) 
+                VALUES (?, ?, NOW())
+            ");
+            $stmt->execute([$userId, $session]);
+            $message = "✅ Time-In recorded successfully for Session $session!";
         } else {
-            $message = "⚠️ You already timed in today.";
+            $message = "⚠️ You already timed in for Session $session today.";
         }
     } else {
         $message = "❌ Invalid QR code.";
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -73,6 +82,7 @@ $qr = $stmt->fetch();
       <span class="text-lg font-bold">MySchedMate</span>
     </div>
     <div class="flex items-center space-x-4">
+      <span class="text-sm">Welcome, <?= htmlspecialchars($_SESSION['username']) ?>!</span>
       <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </a>

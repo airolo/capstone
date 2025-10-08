@@ -20,9 +20,6 @@ if (isset($_POST['toggle_active']) && isset($_POST['admin_id'])) {
   $stmt = $pdo->prepare("UPDATE users SET is_active = NOT is_active WHERE id = ?");
   $stmt->execute([$admin_id]);
 
-  $subject = "MySchedMate Admin Account " . ($adminData['is_active'] ? "Deactivated" : "Reactivated");
-  $message = "Hello,\n\nYour account has been " . ($adminData['is_active'] ? "deactivated" : "reactivated") . ".\nPlease contact Super Admin if this was a mistake.";
-  @mail($adminData['email'], $subject, $message, "From: myschedmate@domain.com");
 }
 
 if (isset($_POST['delete_admin']) && isset($_POST['admin_id'])) {
@@ -159,13 +156,6 @@ $students = $stmt->fetchAll();
                 <?= $admin['is_active'] ? '<span class="text-green-600">Active</span>' : '<span class="text-red-600">Inactive</span>' ?>
               </td>
               <td class="p-2 space-x-1">
-                <!-- Toggle Active -->
-                <form method="POST" class="inline">
-                  <input type="hidden" name="admin_id" value="<?= $admin['id'] ?>">
-                  <button type="submit" name="toggle_active" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">
-                    <?= $admin['is_active'] ? 'Deactivate' : 'Activate' ?>
-                  </button>
-                </form>
                 <!-- Edit -->
                 <a href="edit_admin.php?id=<?= $admin['id'] ?>" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">Edit</a>
                 <!-- Delete -->
@@ -218,13 +208,6 @@ $students = $stmt->fetchAll();
                 <?= $student['is_active'] ? '<span class="text-green-600">Active</span>' : '<span class="text-red-600">Inactive</span>' ?>
               </td>
               <td class="p-2 space-x-1">
-                <!-- Toggle Active -->
-                <form method="POST" class="inline">
-                  <input type="hidden" name="student_id" value="<?= $student['id'] ?>">
-                  <button type="submit" name="toggle_student_active" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">
-                    <?= $student['is_active'] ? 'Deactivate' : 'Activate' ?>
-                  </button>
-                </form>
                 <!-- Edit -->
                 <a href="edit_student.php?id=<?= $student['id'] ?>" 
                    class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">Edit</a>

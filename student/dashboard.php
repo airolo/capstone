@@ -2,7 +2,7 @@
 session_start();
 require_once '../includes/db.php';
 
-// ✅ Handle notification dismissal
+// Handle notification dismissal
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
   $notifId = intval($_POST['id']);
   $userId = $_SESSION['user_id'];
@@ -11,13 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
   exit;
 }
 
-// ✅ Fetch student data
+// Fetch student data
 $stmt = $pdo->prepare("SELECT id, fullname, office FROM users WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $user = $stmt->fetch();
 $userId = $user['id'];
 
-// ✅ Today's attendance logs
+// Today's attendance logs
 $today = date('Y-m-d');
 $logStmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ?");
 $logStmt->execute([$userId, $today]);
@@ -39,7 +39,7 @@ $timeOutStatus = $log && $log['time_out'] ? '✅ ' . date("g:i A", strtotime($lo
 
 <body class="bg-blue-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex flex-col">
 
-<!-- ✅ Navbar -->
+<!-- Navbar -->
 <nav class="bg-blue-700 dark:bg-gray-800 text-white shadow-md px-4 py-3 flex justify-between items-center relative">
   <div class="flex items-center space-x-2">
     <i data-lucide="calendar-clock" class="w-6 h-6"></i>
@@ -69,13 +69,13 @@ $timeOutStatus = $log && $log['time_out'] ? '✅ ' . date("g:i A", strtotime($lo
   </div>
 </nav>
 
-<!-- ✅ Main Content -->
+<!-- Main Content -->
 <main class="flex-grow px-4 sm:px-6 py-6 max-w-5xl mx-auto w-full space-y-6">
   <h2 class="text-2xl font-semibold">🎓 Student Dashboard</h2>
   <p class="text-sm">Name: <strong><?= htmlspecialchars($user['fullname']) ?></strong></p>
   <p class="text-sm mb-4">Office: <strong><?= htmlspecialchars($user['office']) ?></strong></p>
 
-  <!-- ✅ Dashboard Cards -->
+  <!-- Dashboard Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
     <?php
     $cards = [
@@ -94,38 +94,43 @@ $timeOutStatus = $log && $log['time_out'] ? '✅ ' . date("g:i A", strtotime($lo
     <?php endforeach; ?>
   </div>
 
-  <!-- ✅ Today's Attendance -->
-  <section>
-    <h3 class="text-lg font-semibold mb-2">🕒 Today's Session (<?= date('F j, Y') ?>)</h3>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 space-y-3 text-sm">
-      <?php
-      $todayLogsStmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND DATE(time_in) = ? ORDER BY time_in ASC");
-      $todayLogsStmt->execute([$userId, date('Y-m-d')]);
-      $todayLogs = $todayLogsStmt->fetchAll(PDO::FETCH_ASSOC);
+  <!-- Today's Attendance -->
+<section>
+  <h3 class="text-lg font-semibold mb-2">🕒 Today's Session (<?= date('F j, Y') ?>)</h3>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 space-y-3 text-sm">
+    <?php
+    $todayLogsStmt = $pdo->prepare("
+        SELECT session, time_in, time_out 
+        FROM attendance_logs 
+        WHERE user_id = ? AND DATE(time_in) = ? 
+        ORDER BY FIELD(session, 'AM', 'PM')
+    ");
+    $todayLogsStmt->execute([$userId, date('Y-m-d')]);
+    $todayLogs = $todayLogsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-      if (!$todayLogs): ?>
-        <p class="text-gray-500">No sessions recorded yet today.</p>
-      <?php else:
-        foreach ($todayLogs as $index => $log):
-          $session_label = ($index === 0) ? 'Session 1 (AM)' : 'Session 2 (PM)'; ?>
-          <div class="border-b border-gray-200 dark:border-gray-700 pb-2">
-            <strong><?= $session_label ?>:</strong>
-            <div class="ml-3">
-              🟢 Time In: <?= $log['time_in'] ? date('h:i A', strtotime($log['time_in'])) : '—' ?><br>
-              🔴 Time Out: <?= $log['time_out'] ? date('h:i A', strtotime($log['time_out'])) : '—' ?>
+    if (!$todayLogs): ?>
+      <p class="text-gray-500">No sessions recorded yet today.</p>
+    <?php else:
+        foreach ($todayLogs as $log):
+            $session_label = ($log['session'] === 'AM') ? 'Session 1 (AM)' : 'Session 2 (PM)'; ?>
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-2">
+                <strong><?= $session_label ?>:</strong>
+                <div class="ml-3">
+                  🟢 Time In: <?= $log['time_in'] ? date('h:i A', strtotime($log['time_in'])) : '—' ?><br>
+                  🔴 Time Out: <?= $log['time_out'] ? date('h:i A', strtotime($log['time_out'])) : '—' ?>
+                </div>
+                <?php if ($log['time_in'] && $log['time_out']):
+                    $duration = strtotime($log['time_out']) - strtotime($log['time_in']);
+                    $hours = floor($duration / 3600);
+                    $minutes = floor(($duration % 3600) / 60); ?>
+                    <span class="block ml-3 text-gray-500 text-xs">🕓 Duration: <?= $hours ?>h <?= $minutes ?>m</span>
+                <?php endif; ?>
             </div>
-             <?php
-                $duration = strtotime($log['time_out']) - strtotime($log['time_in']);
-                $hours = floor($duration / 3600);
-                $minutes = floor(($duration % 3600) / 60);
-              ?>
-              <span class="block ml-3 text-gray-500 text-xs">🕓 Duration: <?= $hours ?>h <?= $minutes ?>m</span>
-          </div>
-        <?php endforeach; endif; ?>
-    </div>
-  </section>
+    <?php endforeach; endif; ?>
+  </div>
+</section>
 
-  <!-- ✅ Notifications -->
+  <!-- Notifications -->
   <section class="mt-8">
     <h3 class="text-xl font-semibold mb-2">🔔 Notifications</h3>
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-4 space-y-3 text-sm">
@@ -152,7 +157,7 @@ $timeOutStatus = $log && $log['time_out'] ? '✅ ' . date("g:i A", strtotime($lo
   </section>
 </main>
 
-<!-- ✅ Footer -->
+<!-- Footer -->
 <footer class="text-center py-4 text-xs text-gray-500 dark:text-gray-400 bg-blue-100 dark:bg-gray-800">
   MySchedMate © <?= date('Y') ?>
 </footer>

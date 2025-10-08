@@ -57,6 +57,7 @@ if ($missed > 0) {
       <span class="text-lg font-bold">MySchedMate</span>
     </div>
    <div class="flex items-center space-x-4">
+    <span class="text-sm">Welcome, <?= htmlspecialchars($_SESSION['username']) ?>!</span>
       <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </a>

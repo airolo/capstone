@@ -6,11 +6,12 @@ date_default_timezone_set('Asia/Manila');
 
 // ✅ Define scheduled QR times and expiration
 $qrSchedules = [
-    'timein_am'  => ['generate_time' => '07:30:00', 'expire_after' => '+30 minutes'],
-    'timeout_am' => ['generate_time' => '11:00:00', 'expire_after' => '+30 minutes'],
-    'timein_pm'  => ['generate_time' => '13:00:00', 'expire_after' => '+30 minutes'],
-    'timeout_pm' => ['generate_time' => '17:30:00', 'expire_after' => '+30 minutes'],
+    'timein_am'  => ['generate_time' => '07:30:00', 'expire_time' => '12:00:00'],
+    'timeout_am' => ['generate_time' => '11:00:00', 'expire_time' => '12:00:00'],
+    'timein_pm'  => ['generate_time' => '13:00:00', 'expire_time' => '18:00:00'],
+    'timeout_pm' => ['generate_time' => '17:30:00', 'expire_time' => '18:00:00'],
 ];
+
 
 function generateQR($type, $office, $pdo, $schedule) {
     $folderPath = __DIR__ . '/assets/qrcodes/';
@@ -23,7 +24,8 @@ function generateQR($type, $office, $pdo, $schedule) {
     QRcode::png($codeValue, $filePath);
 
     $createdAt = date('Y-m-d H:i:s', strtotime(date('Y-m-d') . ' ' . $schedule['generate_time']));
-    $expiresAt = date('Y-m-d H:i:s', strtotime($schedule['expire_after'], strtotime($createdAt)));
+    $expiresAt = date('Y-m-d H:i:s', strtotime(date('Y-m-d') . ' ' . $schedule['expire_time']));
+
 
     // ✅ Store QR code entry
     $stmt = $pdo->prepare("

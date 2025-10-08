@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
     }
     fclose($handle);
 
-    // ✅ Auto-generate work schedule
+    // Auto-generate work schedule
     require_once 'generate_work_schedule.php';
 
     header("Location: view_schedule.php?success=1");
@@ -59,6 +59,7 @@ exit();
     <span class="font-bold text-lg">Upload Schedule</span>
   </div>
   <div class="flex space-x-4 items-center">
+    <span class="text-sm">Welcome, <?= htmlspecialchars($_SESSION['username']) ?>!</span>
     <a href="dashboard.php" class="flex items-center gap-1 hover:underline">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </a>
