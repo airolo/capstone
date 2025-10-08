@@ -33,6 +33,11 @@ $qr_timein_am  = $qrs['timein_am']['qr_path'] ?? null;
 $qr_timeout_am = $qrs['timeout_am']['qr_path'] ?? null;
 $qr_timein_pm  = $qrs['timein_pm']['qr_path'] ?? null;
 $qr_timeout_pm = $qrs['timeout_pm']['qr_path'] ?? null;
+
+// ✅ Fetch pending student count for notification badge
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'student' AND office = ? AND status = 'pending'");
+$stmt->execute([$admin_office]);
+$pending_count = $stmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -72,14 +77,31 @@ $qr_timeout_pm = $qrs['timeout_pm']['qr_path'] ?? null;
   <p class="text-sm mb-4">Office: <strong><?= htmlspecialchars($admin_office) ?></strong></p>
 
   <!-- ✅ Dashboard Buttons -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-6">
-    <a href="manage_requests.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
+  <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-3 gap-6">
+    <!-- Make-Up Requests -->
+    <a href="manage_requests.php" 
+      class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex flex-col items-center justify-center text-center space-y-2 relative">
       <i data-lucide="check-circle" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
-      <span>Make-Up Requests</span>
+      <span class="font-medium">Make-Up Requests</span>
     </a>
-    <a href="reports.php" class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex items-center space-x-3">
+
+    <!-- Reports -->
+    <a href="reports.php" 
+      class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex flex-col items-center justify-center text-center space-y-2 relative">
       <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
-      <span>Reports</span>
+      <span class="font-medium">Reports</span>
+    </a>
+
+    <!-- Account Approvals with Badge -->
+    <a href="account_approvals.php" 
+      class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md hover:scale-105 transition flex flex-col items-center justify-center text-center space-y-2 relative">
+      <i data-lucide="user-check" class="w-5 h-5 text-blue-600 dark:text-yellow-400"></i>
+      <span class="font-medium">Account Approvals</span>
+      <?php if ($pending_count > 0): ?>
+        <span class="absolute top-3 right-4 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
+          <?= htmlspecialchars($pending_count) ?>
+        </span>
+      <?php endif; ?>
     </a>
   </div>
 
@@ -95,49 +117,25 @@ $qr_timeout_pm = $qrs['timeout_pm']['qr_path'] ?? null;
     </p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-      <!-- Time-In AM -->
+      <?php
+      $qr_sections = [
+        'Time-In (7:30 AM)' => $qr_timein_am,
+        'Time-Out (11:00 AM)' => $qr_timeout_am,
+        'Time-In (1:00 PM)' => $qr_timein_pm,
+        'Time-Out (5:30 PM)' => $qr_timeout_pm
+      ];
+      foreach ($qr_sections as $label => $path):
+      ?>
       <div class="p-4 border rounded-lg dark:border-gray-700">
-        <h4 class="font-semibold mb-2">Time-In (7:30 AM)</h4>
-        <?php if ($qr_timein_am): ?>
-          <img src="../<?= htmlspecialchars($qr_timein_am) ?>?<?= time() ?>" alt="Time-In AM QR" class="w-40 h-40 mx-auto rounded shadow">
+        <h4 class="font-semibold mb-2"><?= $label ?></h4>
+        <?php if ($path): ?>
+          <img src="../<?= htmlspecialchars($path) ?>?<?= time() ?>" alt="<?= htmlspecialchars($label) ?> QR" class="w-40 h-40 mx-auto rounded shadow">
           <p class="mt-2 text-green-600 text-sm">✅ Generated</p>
         <?php else: ?>
           <p class="text-red-500 text-sm">❌ Not yet generated</p>
         <?php endif; ?>
       </div>
-
-      <!-- Time-Out AM -->
-      <div class="p-4 border rounded-lg dark:border-gray-700">
-        <h4 class="font-semibold mb-2">Time-Out (11:00 AM)</h4>
-        <?php if ($qr_timeout_am): ?>
-          <img src="../<?= htmlspecialchars($qr_timeout_am) ?>?<?= time() ?>" alt="Time-Out AM QR" class="w-40 h-40 mx-auto rounded shadow">
-          <p class="mt-2 text-green-600 text-sm">✅ Generated</p>
-        <?php else: ?>
-          <p class="text-red-500 text-sm">❌ Not yet generated</p>
-        <?php endif; ?>
-      </div>
-
-      <!-- Time-In PM -->
-      <div class="p-4 border rounded-lg dark:border-gray-700">
-        <h4 class="font-semibold mb-2">Time-In (1:00 PM)</h4>
-        <?php if ($qr_timein_pm): ?>
-          <img src="../<?= htmlspecialchars($qr_timein_pm) ?>?<?= time() ?>" alt="Time-In PM QR" class="w-40 h-40 mx-auto rounded shadow">
-          <p class="mt-2 text-green-600 text-sm">✅ Generated</p>
-        <?php else: ?>
-          <p class="text-red-500 text-sm">❌ Not yet generated</p>
-        <?php endif; ?>
-      </div>
-
-      <!-- Time-Out PM -->
-      <div class="p-4 border rounded-lg dark:border-gray-700">
-        <h4 class="font-semibold mb-2">Time-Out (5:30 PM)</h4>
-        <?php if ($qr_timeout_pm): ?>
-          <img src="../<?= htmlspecialchars($qr_timeout_pm) ?>?<?= time() ?>" alt="Time-Out PM QR" class="w-40 h-40 mx-auto rounded shadow">
-          <p class="mt-2 text-green-600 text-sm">✅ Generated</p>
-        <?php else: ?>
-          <p class="text-red-500 text-sm">❌ Not yet generated</p>
-        <?php endif; ?>
-      </div>
+      <?php endforeach; ?>
     </div>
   </section>
 
