@@ -1,11 +1,8 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('admin', '../login.php');
+touchActivity(600, '../login.php');
 
 $stmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
 $stmt->execute([$_SESSION['user_id']]);
@@ -17,7 +14,10 @@ $end = $_GET['end_date'] ?? '';
 
 // Build filter query
 $query = "
-  SELECT u.fullname, a.log_date, a.time_in, a.time_out
+  SELECT u.fullname, a.log_date,
+         a.morning_time_in, a.morning_time_out, a.afternoon_time_in, a.afternoon_time_out,
+         COALESCE(TIMESTAMPDIFF(MINUTE, a.morning_time_in, a.morning_time_out), 0)
+           + COALESCE(TIMESTAMPDIFF(MINUTE, a.afternoon_time_in, a.afternoon_time_out), 0) AS minutes_rendered
   FROM attendance_logs a
   JOIN users u ON a.user_id = u.id
   WHERE u.office = :office
@@ -85,8 +85,10 @@ $logs = $stmt->fetchAll();
   <tr class="bg-blue-100 dark:bg-gray-700 text-left">
     <th class="p-3">Student</th>
     <th class="p-3">Date</th>
-    <th class="p-3">Time In</th>
-    <th class="p-3">Time Out</th>
+    <th class="p-3">AM In</th>
+    <th class="p-3">AM Out</th>
+    <th class="p-3">PM In</th>
+    <th class="p-3">PM Out</th>
     <th class="p-3">Rendered</th>
   </tr>
 </thead>
@@ -96,11 +98,13 @@ $logs = $stmt->fetchAll();
     <tr class="border-t border-gray-200 dark:border-gray-700">
       <td class="p-3"><?= htmlspecialchars($log['fullname']) ?></td>
       <td class="p-3"><?= $log['log_date'] ?></td>
-      <td class="p-3"><?= $log['time_in'] ?? '—' ?></td>
-      <td class="p-3"><?= $log['time_out'] ?? '—' ?></td>
+      <td class="p-3"><?= $log['morning_time_in'] ? date('h:i A', strtotime($log['morning_time_in'])) : '—' ?></td>
+      <td class="p-3"><?= $log['morning_time_out'] ? date('h:i A', strtotime($log['morning_time_out'])) : '—' ?></td>
+      <td class="p-3"><?= $log['afternoon_time_in'] ? date('h:i A', strtotime($log['afternoon_time_in'])) : '—' ?></td>
+      <td class="p-3"><?= $log['afternoon_time_out'] ? date('h:i A', strtotime($log['afternoon_time_out'])) : '—' ?></td>
       <td class="p-3">
         <?php
-          if ($log['time_in'] && $log['time_out']) {
+          if ($log['minutes_rendered'] > 0) {
             $hours = floor($log['minutes_rendered'] / 60);
             $minutes = $log['minutes_rendered'] % 60;
             echo "{$hours}h {$minutes}m";
@@ -111,7 +115,7 @@ $logs = $stmt->fetchAll();
       </td>
     </tr>
   <?php endforeach; else: ?>
-    <tr><td colspan="5" class="p-4 text-center text-gray-500">No logs found.</td></tr>
+    <tr><td colspan="7" class="p-4 text-center text-gray-500">No logs found.</td></tr>
   <?php endif; ?>
   
 </tbody>

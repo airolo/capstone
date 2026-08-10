@@ -1,9 +1,6 @@
 <?php
-session_start();
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
+require_once 'includes/auth.php';
+require_once 'includes/csrf.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -15,6 +12,7 @@ if (empty($_SESSION['csrf_token'])) {
 <body class="bg-blue-50 flex items-center justify-center min-h-screen">
 
   <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+    <a href="index.php" class="inline-flex items-center gap-1 text-blue-600 hover:underline text-sm mb-4">← Back to Home</a>
     <h2 class="text-2xl font-bold text-center text-blue-700 mb-6">Create an Account</h2>
 
     <?php if (isset($_SESSION['signup_error'])): ?>
@@ -59,8 +57,7 @@ if (empty($_SESSION['csrf_token'])) {
           <option value="IT Office">IT Office</option>
         </select>
       </div>
-      
-      
+      <?= csrfField() ?>
 
       <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">Sign Up</button>
     </form>

@@ -1,40 +1,28 @@
 <?php
-session_start();
-require_once '../includes/db.php';
-require_once '../includes/phpqrcode/qrlib.php';
+require_once '../includes/auth.php';
+require_once '../includes/generate_qr_codes.php';
 
 // Session and access control
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-  header("Location: ../login.php");
-  exit();
+requireRole('admin', '../login.php');
+touchActivity(600, '../login.php');
+
+$adminId = $_SESSION['user_id'];
+$today = date('Y-m-d');
+
+// Students assigned to the admin's office
+$officeStmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
+$officeStmt->execute([$adminId]);
+$office = $officeStmt->fetchColumn();
+
+$studentStmt = $pdo->prepare("SELECT id, fullname FROM users WHERE role = 'student' AND office = ? ORDER BY fullname");
+$studentStmt->execute([$office]);
+$students = $studentStmt->fetchAll();
+
+// Fetch today's QR info per student
+$qrByStudent = [];
+foreach ($students as $s) {
+  $qrByStudent[$s['id']] = getDailyQrCodes($today, $s['id'])[$s['id']] ?? ['name' => $s['fullname'], 'qrs' => []];
 }
-
-// Paths and filenames
-$date = date('Y-m-d');
-$todayCodeFile = '../assets/qrcodes/' . date('Ymd') . '.png';
-$expires_at = date('Y-m-d 23:59:00');
-
-// Handle QR Regeneration
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['regenerate'])) {
-  $code = uniqid("QR_", true);
-
-  if (!file_exists('../assets/qrcodes')) {
-    mkdir('../assets/qrcodes', 0777, true);
-  }
-
-  QRcode::png($code, $todayCodeFile);
-
-  // Save to DB
-  $stmt = $pdo->prepare("REPLACE INTO qr_codes (date_generated, code, expires_at) VALUES (?, ?, ?)");
-  $stmt->execute([$date, $code, $expires_at]);
-}
-
-// Fetch today's QR info
-$stmt = $pdo->prepare("SELECT code, expires_at FROM qr_codes WHERE date_generated = ?");
-$stmt->execute([$date]);
-$row = $stmt->fetch();
-$code = $row['code'] ?? '';
-$expires_at = $row['expires_at'] ?? $expires_at;
 ?>
 
 <!DOCTYPE html>
@@ -51,7 +39,7 @@ $expires_at = $row['expires_at'] ?? $expires_at;
 <!-- Navbar -->
 <nav class="bg-blue-700 dark:bg-gray-800 text-white px-6 py-3 flex justify-between items-center shadow">
   <div class="flex items-center space-x-2">
-   <i data-lucide="qr-code" class="w-6 h-6"></i>
+    <i data-lucide="qr-code" class="w-6 h-6"></i>
     <span class="font-bold text-lg">Admin Panel - QR Generator</span>
   </div>
   <div class="flex items-center space-x-4">
@@ -62,32 +50,37 @@ $expires_at = $row['expires_at'] ?? $expires_at;
 </nav>
 
 <!-- Main Content -->
-<main class="max-w-2xl mx-auto p-6 text-center space-y-6">
-  <h1 class="text-2xl font-bold flex items-center justify-center gap-2">
-  <i data-lucide="qr-code" class="w-6 h-6"></i>
-  <span>Today's QR Code</span>
-</h1>
+<main class="max-w-5xl mx-auto p-6 space-y-6">
+  <h1 class="text-2xl font-bold text-center">
+    Today's QR Codes - <?= $today ?> (<?= htmlspecialchars($office) ?> Office)
+  </h1>
 
+  <?php if (empty($students)): ?>
+    <p class="text-center text-gray-500">No student assistants assigned to your office.</p>
+  <?php endif; ?>
 
-  <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-    <?php if ($code && file_exists($todayCodeFile)): ?>
-      <img src="<?= $todayCodeFile ?>?<?= time() ?>" alt="QR Code" class="w-40 h-40 mx-auto">
-    <?php else: ?>
-      <p class="text-red-500">❗ No QR code generated yet.</p>
-    <?php endif; ?>
+  <?php foreach ($qrByStudent as $studentId => $student): ?>
+    <section>
+      <h2 class="text-lg font-semibold mb-3">🎓 <?= htmlspecialchars($student['name']) ?></h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <?php foreach (QR_SESSIONS as $type => $meta): ?>
+          <?php $qr = $student['qrs'][$type] ?? null; ?>
+          <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow text-center space-y-3">
+            <p class="font-semibold text-blue-700 dark:text-yellow-400"><?= $meta['label'] ?></p>
+            <?php if ($qr && $qr['code'] && file_exists($qr['file'])): ?>
+              <img src="<?= $qr['url'] ?>?<?= time() ?>" alt="<?= $meta['label'] ?>" class="w-36 h-36 mx-auto">
+              <p class="text-sm text-gray-600 dark:text-gray-300">Valid: <?= $meta['start'] ?> - <?= $meta['end'] ?></p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Expires: <?= date('h:i A', strtotime($qr['expires_at'])) ?></p>
+            <?php else: ?>
+              <p class="text-red-500 text-sm py-10">❗ Not generated yet.</p>
+            <?php endif; ?>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endforeach; ?>
 
-    <div class="flex justify-center space-x-6 text-sm text-gray-700 dark:text-gray-300">
-      <div><i data-lucide="calendar-days" class="inline w-4 h-4 mr-1"></i> Date: <strong><?= $date ?></strong></div>
-      <div><i data-lucide="hourglass" class="inline w-4 h-4 mr-1"></i> Expires at: <strong><?= date("h:i A", strtotime($expires_at)) ?></strong></div>
-    </div>
-
-    <form method="POST">
-      <button name="regenerate" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center space-x-2 mx-auto">
-        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
-        <span>Regenerate QR</span>
-      </button>
-    </form>
-  </div>
+  <p class="text-center text-xs text-gray-500">Each QR code is valid only for the student it was generated for and appears automatically at its scheduled time (07:30, 12:00, 13:00, 17:00).</p>
 </main>
 
 <!-- Dark Mode Toggle -->

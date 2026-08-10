@@ -1,16 +1,16 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/csrf.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('student', '../login.php');
+touchActivity(600, '../login.php');
 
 $user_id = $_SESSION['user_id'];
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  csrfCheck('../login.php');
+
   $date = $_POST['date'];
   $start_time = $_POST['start_time'];
   $end_time = $_POST['end_time'];
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Fetch existing requests
-$stmt = $pdo->prepare("SELECT * FROM make_up_requests WHERE user_id = ? ORDER BY request_date DESC");
+$stmt = $pdo->prepare("SELECT * FROM make_up_requests WHERE user_id = ? ORDER BY date DESC");
 
 $stmt->execute([$user_id]);
 $requests = $stmt->fetchAll();
@@ -62,6 +62,7 @@ $requests = $stmt->fetchAll();
     <?php endif; ?>
 
     <form method="POST" class="bg-white dark:bg-gray-800 p-4 rounded shadow space-y-4">
+      <?= csrfField() ?>
       <div>
         <label class="block text-sm mb-1">Date</label>
         <input type="date" name="date" class="w-full p-2 border rounded" required>
@@ -100,8 +101,8 @@ $requests = $stmt->fetchAll();
               <td class="p-2"><?= htmlspecialchars($r['date']) ?></td>
               <td class="p-2"><?= date('h:i A', strtotime($r['start_time'])) . " - " . date('h:i A', strtotime($r['end_time'])) ?></td>
               <td class="p-2"><?= htmlspecialchars($r['reason']) ?></td>
-              <td class="p-2 font-semibold <?= $r['status'] === 'approved' ? 'text-green-600' : ($r['status'] === 'denied' ? 'text-red-600' : 'text-yellow-600') ?>">
-                <?= ucfirst($r['status']) ?>
+              <td class="p-2 font-semibold <?= strtolower($r['status']) === 'approved' ? 'text-green-600' : (strtolower($r['status']) === 'denied' ? 'text-red-600' : 'text-yellow-600') ?>">
+                <?= htmlspecialchars($r['status']) ?>
               </td>
             </tr>
           <?php endforeach; else: ?>

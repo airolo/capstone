@@ -1,14 +1,13 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
 
 // Security: only allow admins
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('admin', '../login.php');
 
-$admin_office = $_SESSION['admin_office'] ?? '';
+// Admin is scoped to the office stored on their own account
+$officeStmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
+$officeStmt->execute([$_SESSION['user_id']]);
+$admin_office = $officeStmt->fetchColumn() ?: '';
 
 // Fetch students only from the same office
 $stmt = $pdo->prepare("SELECT fullname, username, email, required_hours, rendered_hours, missed_hours FROM users WHERE role = 'student' AND office = ?");

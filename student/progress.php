@@ -1,13 +1,10 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
 require_once '../includes/update_rendered_hours.php';
 require_once '../includes/save_progress_snapshot.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('student', '../login.php');
+touchActivity(600, '../login.php');
 
 $user_id = $_SESSION['user_id'];
 

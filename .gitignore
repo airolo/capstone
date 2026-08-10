@@ -1,0 +1,8 @@
+# Generated / runtime artifacts (never commit)
+assets/qrcodes/
+uploads/
+includes/phpqrcode/cache/
+includes/phpqrcode/bindings/
+
+# Logs
+*.log

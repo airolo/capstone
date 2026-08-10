@@ -1,11 +1,9 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/csrf.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('admin', '../login.php');
+touchActivity(600, '../login.php');
 
 $admin_id = $_SESSION['user_id'];
 $officeStmt = $pdo->prepare("SELECT office FROM users WHERE id = ?");
@@ -14,6 +12,8 @@ $office = $officeStmt->fetchColumn();
 
 // Process approve/deny action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST['action'])) {
+  csrfCheck('../login.php');
+
   $request_id = $_POST['request_id'];
   $action = $_POST['action'];
   $comment = $_POST['admin_comment'] ?? '';
@@ -23,12 +23,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_id'], $_POST[
   $update->execute([$status, $comment, $request_id]);
 
   // Get user_id and date to notify
-  $getInfo = $pdo->prepare("SELECT user_id, date_requested FROM make_up_requests WHERE id = ?");
+  $getInfo = $pdo->prepare("SELECT user_id, date FROM make_up_requests WHERE id = ?");
   $getInfo->execute([$request_id]);
   $info = $getInfo->fetch();
 
   if ($info) {
-    $message = "Your make-up request for " . $info['date_requested'] . " has been $status.";
+    $message = "Your make-up request for " . $info['date'] . " has been $status.";
     $notify = $pdo->prepare("INSERT INTO notifications (user_id, message) VALUES (?, ?)");
     $notify->execute([$info['user_id'], $message]);
   }
@@ -54,12 +54,12 @@ if ($search) {
   $params[':search'] = "%$search%";
 }
 if ($start && $end) {
-  $query .= " AND r.date_requested BETWEEN :start AND :end";
+  $query .= " AND r.date BETWEEN :start AND :end";
   $params[':start'] = $start;
   $params[':end'] = $end;
 }
 
-$query .= " ORDER BY r.date_requested DESC";
+$query .= " ORDER BY r.date DESC";
 $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $requests = $stmt->fetchAll();
@@ -118,12 +118,13 @@ $requests = $stmt->fetchAll();
         <?php if ($requests): foreach ($requests as $r): ?>
           <tr class="border-t dark:border-gray-700">
             <td class="p-3"><?= htmlspecialchars($r['fullname']) ?></td>
-            <td class="p-3"><?= htmlspecialchars($r['date_requested']) ?></td>
+            <td class="p-3"><?= htmlspecialchars($r['date']) ?></td>
             <td class="p-3"><?= htmlspecialchars($r['reason']) ?></td>
             <td class="p-3"><?= htmlspecialchars($r['status']) ?></td>
             <td class="p-3">
               <?php if ($r['status'] === 'Pending'): ?>
                 <form method="POST" class="flex flex-col sm:flex-row gap-2">
+                  <?= csrfField() ?>
                   <input type="hidden" name="request_id" value="<?= $r['id'] ?>">
                   <input type="text" name="admin_comment" placeholder="Optional comment" class="px-2 py-1 border rounded text-xs w-full">
                   <button name="action" value="approve" class="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700">Approve</button>

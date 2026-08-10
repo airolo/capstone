@@ -5,20 +5,20 @@ require_once '../includes/csrf.php';
 // Super Admin access only
 requireRole('superadmin', '../login.php');
 
-// Get admin ID
-$admin_id = $_GET['id'] ?? null;
-if (!$admin_id) {
+// Get student ID
+$student_id = $_GET['id'] ?? null;
+if (!$student_id) {
   header("Location: dashboard.php");
   exit();
 }
 
-// Fetch admin data
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? AND role = 'admin'");
-$stmt->execute([$admin_id]);
-$admin = $stmt->fetch();
+// Fetch student data
+$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ? AND role = 'student'");
+$stmt->execute([$student_id]);
+$student = $stmt->fetch();
 
-if (!$admin) {
-  echo "Admin not found.";
+if (!$student) {
+  echo "Student not found.";
   exit();
 }
 
@@ -30,21 +30,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $office = trim($_POST['office']);
 
   $stmt = $pdo->prepare("UPDATE users SET fullname = ?, office = ? WHERE id = ?");
-  $stmt->execute([$fullname, $office, $admin_id]);
+  $stmt->execute([$fullname, $office, $student_id]);
 
   header("Location: dashboard.php?updated=1");
   exit();
 }
 
 // Define dropdown office list
-$offices = ['Registrar', 'Library', 'OSA', 'Clinic', 'Accounting', 'Research Office', 'MIS', 'Guidance'];
+$offices = ['Library', 'Registrar', 'Guidance', 'IT Office'];
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Edit Admin - MySchedMate</title>
+  <title>Edit Student Assistant - MySchedMate</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
@@ -69,25 +69,25 @@ $offices = ['Registrar', 'Library', 'OSA', 'Clinic', 'Accounting', 'Research Off
 <!-- Main -->
 <main class="max-w-xl mx-auto p-6 mt-8 bg-white dark:bg-gray-800 rounded-lg shadow">
   <h2 class="text-xl font-bold mb-4 flex items-center space-x-2">
-    <i data-lucide="user-edit" class="w-5 h-5"></i>
-    <span>Edit Admin Account</span>
+    <i data-lucide="user-edit" class="w-6 h-6"></i>
+    <span>Edit Student Assistant Account</span>
   </h2>
 
   <form method="POST" class="space-y-4">
     <?= csrfField() ?>
     <div>
       <label class="block text-sm font-medium">Full Name</label>
-      <input type="text" name="fullname" required class="w-full px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($admin['fullname']) ?>">
+      <input type="text" name="fullname" required class="w-full px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($student['fullname']) ?>">
     </div>
 
     <div>
       <label class="block text-sm font-medium">Username</label>
-      <input type="text" name="username" disabled class="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($admin['username']) ?>">
+      <input type="text" name="username" disabled class="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($student['username']) ?>">
     </div>
 
     <div>
       <label class="block text-sm font-medium">Email</label>
-      <input type="email" name="email" disabled class="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($admin['email']) ?>">
+      <input type="email" name="email" disabled class="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-700 dark:border-gray-600" value="<?= htmlspecialchars($student['email']) ?>">
     </div>
 
     <div>
@@ -95,7 +95,7 @@ $offices = ['Registrar', 'Library', 'OSA', 'Clinic', 'Accounting', 'Research Off
       <select name="office" required class="w-full px-4 py-2 border rounded dark:bg-gray-700 dark:border-gray-600">
         <option value="" disabled>Select office</option>
         <?php foreach ($offices as $opt): ?>
-          <option value="<?= $opt ?>" <?= ($admin['office'] === $opt) ? 'selected' : '' ?>>
+          <option value="<?= $opt ?>" <?= ($student['office'] === $opt) ? 'selected' : '' ?>>
             <?= $opt ?>
           </option>
         <?php endforeach; ?>

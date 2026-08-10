@@ -4,12 +4,14 @@ require_once 'db.php';
 function updateRenderedHours($user_id) {
   global $pdo;
 
-  // Calculate total rendered minutes
+  // Calculate total rendered minutes (AM + PM sessions)
   $stmt = $pdo->prepare("
-    SELECT 
-      SUM(TIMESTAMPDIFF(MINUTE, time_in, time_out)) AS total_minutes
+    SELECT COALESCE(SUM(
+      COALESCE(TIMESTAMPDIFF(MINUTE, morning_time_in, morning_time_out), 0) +
+      COALESCE(TIMESTAMPDIFF(MINUTE, afternoon_time_in, afternoon_time_out), 0)
+    ), 0) AS total_minutes
     FROM attendance_logs
-    WHERE user_id = ? AND time_in IS NOT NULL AND time_out IS NOT NULL
+    WHERE user_id = ?
   ");
   $stmt->execute([$user_id]);
   $total_minutes = $stmt->fetchColumn();

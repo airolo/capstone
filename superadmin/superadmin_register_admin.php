@@ -1,16 +1,15 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/csrf.php';
 
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'superadmin') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('superadmin', '../login.php');
 
 $success = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  csrfCheck('../login.php');
+
   $fullname = trim($_POST['fullname']);
   $username = trim($_POST['username']);
   $email = trim($_POST['email']);
@@ -22,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($stmt->fetchColumn() > 0) {
     $error = "Username or email already exists.";
   } else {
-    $stmt = $pdo->prepare("INSERT INTO users (fullname, username, email, password, office, role, is_active) VALUES (?, ?, ?, ?, ?, 'admin', 1)");
+    $stmt = $pdo->prepare("INSERT INTO users (fullname, username, email, password_hash, office, role, is_active) VALUES (?, ?, ?, ?, ?, 'admin', 1)");
     if ($stmt->execute([$fullname, $username, $email, $password, $office])) {
       $success = "✅ Admin successfully registered.";
     } else {
@@ -74,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php endif; ?>
 
   <form method="POST" class="space-y-4">
+    <?= csrfField() ?>
     <input type="text" name="fullname" required placeholder="Full Name" class="w-full px-3 py-2 border rounded dark:bg-gray-900 dark:border-gray-700">
     <input type="text" name="username" required placeholder="Username" class="w-full px-3 py-2 border rounded dark:bg-gray-900 dark:border-gray-700">
     <input type="email" name="email" required placeholder="Email" class="w-full px-3 py-2 border rounded dark:bg-gray-900 dark:border-gray-700">

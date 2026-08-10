@@ -1,18 +1,15 @@
 <?php
-session_start();
-require_once '../includes/db.php';
+require_once '../includes/auth.php';
+require_once '../includes/csrf.php';
 
-// Session & role check
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-  header("Location: ../login.php");
-  exit();
-}
+requireRole('student', '../login.php');
+touchActivity(600, '../login.php');
 
 $user_id = $_SESSION['user_id'];
 $date_today = date('Y-m-d');
 
 // Fetch attendance for today
-$stmt = $pdo->prepare("SELECT time_in, time_out FROM attendance_logs WHERE user_id = ? AND log_date = ?");
+$stmt = $pdo->prepare("SELECT morning_time_in, morning_time_out, afternoon_time_in, afternoon_time_out FROM attendance_logs WHERE user_id = ? AND log_date = ?");
 $stmt->execute([$user_id, $date_today]);
 $attendance = $stmt->fetch();
 ?>
@@ -47,9 +44,11 @@ $attendance = $stmt->fetch();
 
   <div>
     <p class="mb-2">Status Today:</p>
-    <ul class="list-disc ml-6 text-sm">
-      <li><strong>Time In:</strong> <?= $attendance && $attendance['time_in'] ? date('h:i A', strtotime($attendance['time_in'])) : 'Not yet' ?></li>
-      <li><strong>Time Out:</strong> <?= $attendance && $attendance['time_out'] ? date('h:i A', strtotime($attendance['time_out'])) : 'Not yet' ?></li>
+    <ul class="list-disc ml-6 text-sm space-y-1">
+      <li><strong>AM Time In:</strong> <?= $attendance && $attendance['morning_time_in'] ? date('h:i A', strtotime($attendance['morning_time_in'])) : 'Not yet' ?></li>
+      <li><strong>AM Time Out:</strong> <?= $attendance && $attendance['morning_time_out'] ? date('h:i A', strtotime($attendance['morning_time_out'])) : 'Not yet' ?></li>
+      <li><strong>PM Time In:</strong> <?= $attendance && $attendance['afternoon_time_in'] ? date('h:i A', strtotime($attendance['afternoon_time_in'])) : 'Not yet' ?></li>
+      <li><strong>PM Time Out:</strong> <?= $attendance && $attendance['afternoon_time_out'] ? date('h:i A', strtotime($attendance['afternoon_time_out'])) : 'Not yet' ?></li>
     </ul>
   </div>
 
@@ -59,6 +58,7 @@ $attendance = $stmt->fetch();
 </main>
 
 <script>
+const CSRF_TOKEN = '<?= csrfToken() ?>';
 const reader = new Html5Qrcode("reader");
 reader.start(
   { facingMode: "environment" },
@@ -71,7 +71,7 @@ reader.start(
     fetch("validate_qr.php", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "code=" + encodeURIComponent(qrCodeMessage)
+      body: "code=" + encodeURIComponent(qrCodeMessage) + "&csrf_token=" + encodeURIComponent(CSRF_TOKEN)
     })
     .then(res => res.json())
     .then(data => {
