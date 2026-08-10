@@ -52,7 +52,6 @@ A Capstone Project — a web app that helps student assistants manage their clas
 
 ## First Login
 
-- Default superadmin: `superadmin` / `admin123` — **change the password after first login**
 - Register a student account via `signup.php` (always creates a `student` role)
 - Admin accounts are created by the superadmin (`superadmin/superadmin_register_admin.php`)
 

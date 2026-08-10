@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
   role           ENUM('student','admin','superadmin') NOT NULL DEFAULT 'student',
   office         VARCHAR(100)    NOT NULL DEFAULT '',
   status         VARCHAR(20)     NOT NULL DEFAULT 'Active',
-  required_hours DECIMAL(6,2)    NOT NULL DEFAULT 0.00,
+  required_hours DECIMAL(6,2)    NOT NULL DEFAULT 20.00, -- 4 hours/day x 5 weekdays
   rendered_hours DECIMAL(6,2)    NOT NULL DEFAULT 0.00,
   missed_hours   DECIMAL(6,2)    NOT NULL DEFAULT 0.00,
   is_active      TINYINT(1)      NOT NULL DEFAULT 1,
